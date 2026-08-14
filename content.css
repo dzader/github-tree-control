@@ -1,0 +1,47 @@
+.gh-folder-viewed-row {
+  position: relative;
+}
+
+.gh-folder-viewed-row > [class*="TreeViewItemContent"] {
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.gh-folder-viewed-checkbox {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--fgColor-accent, var(--color-accent-fg, #0969da));
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.gh-folder-viewed-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.gh-folder-viewed-checkbox[data-busy="true"] {
+  cursor: wait;
+}
+
+.gh-folder-viewed-checkbox:focus-visible {
+  outline: 2px solid var(--focus-outlineColor, var(--color-accent-fg, #0969da));
+  outline-offset: 2px;
+}
+
+.gh-folder-viewed-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
