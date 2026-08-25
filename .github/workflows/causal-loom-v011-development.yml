@@ -70,3 +70,11 @@ jobs:
           path: causal-loom-v011-development-output
           if-no-files-found: warn
           retention-days: 90
+      - name: Upload immutable development input snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v011-development-inputs
+          path: /tmp/causal-loom-v011/nanobench
+          if-no-files-found: warn
+          retention-days: 90
