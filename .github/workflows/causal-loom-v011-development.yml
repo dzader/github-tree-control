@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           base64 --decode .causal-loom-v011/develop_v011.py.gz.b64 | gzip --decompress > /tmp/develop_v011.py
-          test "$(sha256sum /tmp/develop_v011.py | cut -d' ' -f1)" = "31f4bfff51cf4c8a324a99c8bfd3548b4ed2594fd9eae413ffc20d1b869e2d4c"
+          test "$(sha256sum /tmp/develop_v011.py | cut -d' ' -f1)" = "346759586a16e414414f2071d63009f4e3fa705467e50bf3467dbf1dd2a91f2a"
           python -m py_compile /tmp/develop_v011.py
       - name: Install deterministic numerical dependencies
         run: pip install numpy==2.1.3 pandas==2.2.3
@@ -50,18 +50,23 @@ jobs:
         shell: bash
         run: |
           mkdir -p causal-loom-v011-development-output
+          set +e
           python /tmp/develop_v011.py \
             --idsia-dir /tmp/idsia \
             --work-dir /tmp/causal-loom-v011 \
             --output-dir causal-loom-v011-development-output \
-            | tee causal-loom-v011-development-output/stdout.log
+            2>&1 | tee causal-loom-v011-development-output/stdout.log
+          status=${PIPESTATUS[0]}
+          set -e
           cp /tmp/develop_v011.py causal-loom-v011-development-output/develop_v011.py
           cp .causal-loom-v011/DEVELOPMENT_PROTOCOL.json causal-loom-v011-development-output/
           sha256sum causal-loom-v011-development-output/* > causal-loom-v011-development-output/FILES_SHA256SUMS.txt
+          exit "$status"
       - name: Upload immutable development evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: causal-loom-v011-development-evidence
           path: causal-loom-v011-development-output
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
