@@ -1,0 +1,35 @@
+name: Causal Loom v0.12 motor-bench bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v011-data-bridge-20260824
+    paths:
+      - '.github/workflows/causal-loom-v012-motorbench-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Retrieve immutable physical intervention dataset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --filter=blob:none https://github.com/alspitz/esc_test.git /tmp/esc_test
+          git -C /tmp/esc_test checkout 4078609e3a84923b9cdbfdea8daf9814364fa9c8
+          git -C /tmp/esc_test status --porcelain
+          git -C /tmp/esc_test rev-parse HEAD > /tmp/esc_test/CAUSAL_LOOM_SOURCE_COMMIT.txt
+          find /tmp/esc_test -type f -not -path '*/.git/*' -print0 | sort -z | xargs -0 sha256sum > /tmp/esc_test/CAUSAL_LOOM_SHA256SUMS.txt
+      - name: Upload immutable motor-bench source
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v012-motorbench-inputs
+          path: /tmp/esc_test
+          include-hidden-files: false
+          if-no-files-found: error
+          retention-days: 90
