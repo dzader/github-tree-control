@@ -1,0 +1,81 @@
+name: Causal Loom v0.13 UIUC metadata-only inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v011-data-bridge-20260824
+    paths:
+      - '.github/workflows/causal-loom-v013-uiuc-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v011-data-bridge-20260824
+
+      - name: Build filename-and-hash-only UIUC static-test inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo="$RUNNER_TEMP/uiuc"
+          out="$RUNNER_TEMP/causal-loom-v013-uiuc-inventory"
+          git clone --filter=blob:none --no-checkout https://github.com/pfreitas97/Parser_UIUC_AeroData.git "$repo"
+          git -C "$repo" cat-file -e e95db20206f7e89fe6d639ce030e887ec2ce7277^{commit}
+          mkdir -p "$out"
+          python - <<'PY'
+          import csv, hashlib, json, os, re, subprocess
+          from pathlib import Path
+
+          repo = Path(os.environ['RUNNER_TEMP']) / 'uiuc'
+          out = Path(os.environ['RUNNER_TEMP']) / 'causal-loom-v013-uiuc-inventory'
+          commit = 'e95db20206f7e89fe6d639ce030e887ec2ce7277'
+          raw = subprocess.check_output(
+              ['git', 'ls-tree', '-r', '-l', commit, 'Propeller_Data_V1', 'Propeller_Data_V2'],
+              cwd=repo,
+              text=True,
+          )
+          rows = []
+          for line in raw.splitlines():
+              left, path = line.split('\t', 1)
+              mode, kind, sha, size = left.split()
+              if kind != 'blob' or '_static_' not in Path(path).name or not path.endswith('.txt'):
+                  continue
+              name = Path(path).name
+              family = name.split('_static_', 1)[0]
+              rows.append({
+                  'path': path,
+                  'family': family,
+                  'blob_sha': sha,
+                  'size_bytes': int(size),
+              })
+          rows.sort(key=lambda r: (r['family'], r['path']))
+          payload = {
+              'repository': 'pfreitas97/Parser_UIUC_AeroData',
+              'commit': commit,
+              'selection_information_only': ['path', 'family', 'blob_sha', 'size_bytes'],
+              'contents_read': False,
+              'entries': rows,
+          }
+          (out / 'inventory.json').write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n')
+          with (out / 'inventory.csv').open('w', newline='') as f:
+              w = csv.DictWriter(f, fieldnames=['path','family','blob_sha','size_bytes'])
+              w.writeheader(); w.writerows(rows)
+          digest = hashlib.sha256((out / 'inventory.json').read_bytes()).hexdigest()
+          (out / 'INVENTORY_SHA256.txt').write_text(f'{digest}  inventory.json\n')
+          print(f'wrote {len(rows)} static-test metadata entries across {len(set(r["family"] for r in rows))} families; no test contents were read')
+          PY
+
+      - name: Upload immutable metadata inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v013-uiuc-metadata-inventory
+          path: ${{ runner.temp }}/causal-loom-v013-uiuc-inventory
+          if-no-files-found: error
+          retention-days: 90
