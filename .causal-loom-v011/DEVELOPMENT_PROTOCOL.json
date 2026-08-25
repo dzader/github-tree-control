@@ -1,0 +1,59 @@
+{
+  "protocol_id": "v0.11-development-anchored-source-write-1",
+  "frozen_date": "2026-08-24",
+  "status": "FROZEN_BEFORE_DEVELOPMENT_EXECUTION",
+  "question": "Can the v0.10 executable motor mechanism transfer from a Crazyflie 2.1 Brushless to an independently collected brushed Crazyflie 2.1 dataset when the input side is mapped through an independently measured motor-voltage-to-RPM realization and only a 2-second target-hardware calibration is used to fit the safe fallback and output write operator?",
+  "architecture": {
+    "equation": "Delta x = f_background,c(x,u) + W_c h(psi_c(PWM,V_bat))",
+    "mechanism": "The four-coefficient cubic Chebyshev h from the frozen v0.10 result is immutable.",
+    "source_realization": "psi_c uses independently published Crazyflie 2.1+ P250 vmotor-to-RPM coefficients; no outcome variable is used to fit or warp psi_c.",
+    "write_realization": "W_c is fitted from exactly 200 target transitions and can be disabled to recover the independently fitted mechanism-free fallback exactly.",
+    "safe_nesting": "The fallback is fitted first. Every nonlinear model is fitted only to its residual."
+  },
+  "calibration": {
+    "file": "A1b_multisine_sysid_rep1.csv",
+    "git_blob_sha1": "e549e1f3e036c8b4cb5e0b2b0c1aefe77e18fa5d",
+    "transitions": 200,
+    "window_rule": "The first 201 consecutive samples whose mean four-motor PWM is at least 7000; rule uses inputs only."
+  },
+  "development_files": [
+    ["B2_circle_medium_rep2.csv", "e78e2325f8c8d9e0e947e7597848addf128e881c"],
+    ["B3_figure8_fast_rep2.csv", "e94bd244d95bcf1eaf28cc64581a59c48c093a89"],
+    ["B5_helix_fast_rep2.csv", "ed44edc416f32f3e8b5a4df031900ec25959eaed"],
+    ["B6_linear_ramp_rep2.csv", "5da2c40aa8b85b9c596adb45cc27ea900d656ed4"],
+    ["B7_oval_fast_rep2.csv", "eea070c2466842de9879e1b26c5b42973ecdb5bf"],
+    ["B8_star_fast_rep2.csv", "7bc1edc9985601c87a93feed55dec49b01e7dbfb"],
+    ["B9_trefoil_medium_rep2.csv", "692d46d6bc772667d814f7db90c3e933e26ab6bf"]
+  ],
+  "reserved_confirmatory_files": [
+    ["B10_lissajous_slow_rep1.csv", "da6198d6a2b89cfcbd6795e666f602eb234174d1"],
+    ["B10_lissajous_fast_rep1.csv", "e5dbb137dbcb3b30f6b2a7f3e23fa70bcae5f2ab"],
+    ["B11_random_waypoints_rep1.csv", "4211d514f607e9ff0adf145c224783b44989a3e5"],
+    ["B11_random_waypoints_rep2.csv", "a383576238f56c5221b4ad4aa4a47bce1afc1f36"],
+    ["B12_staircase_climb_rep1.csv", "144d9070911b4410b0f59f45f355857525fcbc28"],
+    ["C4_battery_drain_rep1.csv", "901bce298ce717fca5b61ea2520b6f819fc0a432"]
+  ],
+  "development_search": {
+    "background_ridge_alphas": [0.1, 1.0, 10.0, 100.0, 1000.0],
+    "residual_ridge_alphas": [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0],
+    "rbf_center_counts": [5, 9],
+    "selection_metric": "Geometric mean across flights of the geometric mean cumulative 1-to-50-step position, velocity, orientation and angular-velocity errors.",
+    "selection_order": "Select the shared fallback alpha first, then select each residual model independently."
+  },
+  "controls": [
+    "mechanism-free background",
+    "supplied quadratic in anchored RPM coordinate",
+    "raw PWM squared",
+    "motor voltage squared",
+    "target-fitted cubic",
+    "generic RBF"
+  ],
+  "holdout_discipline": {
+    "confirmatory_rule": "The development executable contains no confirmatory URLs or file accesses beyond names recorded in this protocol. A separate immutable confirmatory executable will be committed only after development selection is recorded.",
+    "failure_rule": "The first confirmatory execution is permanent. No gate, file, metric or selected hyperparameter may be changed after it begins."
+  },
+  "claim_boundary": {
+    "supported_if_confirmed": "Cross-hardware few-shot transfer of a frozen executable mechanism after independently anchored source realization and small safe write binding.",
+    "not_supported": "A universal motor law, unique causal attribution from passive correlated controls, state-of-the-art benchmark performance, or a general AI breakthrough."
+  }
+}
