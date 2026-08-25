@@ -1,0 +1,27 @@
+name: Causal Loom v0.13 frozen thrust-stand data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v013-data-bridge-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  package-public-inputs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve and verify frozen public inputs
+        run: |
+          python causal_loom_v013/build_frozen_input_artifact.py \
+            --work-dir "$RUNNER_TEMP/causal-loom-v013-work" \
+            --output-dir "$RUNNER_TEMP/causal-loom-v013-artifact"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v013-frozen-inputs
+          path: ${{ runner.temp }}/causal-loom-v013-artifact
+          if-no-files-found: error
+          retention-days: 7
