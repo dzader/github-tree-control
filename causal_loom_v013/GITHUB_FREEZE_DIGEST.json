@@ -1,0 +1,37 @@
+{
+  "bridge_script_sha256": "aeba848b2c95f5c6e781ed4a2cc727a3b6c9cccbd87b17fd3d989ee96e9e63f0",
+  "bridge_workflow_sha256": "8795b1a1bc13f625f590d00876e930ca845351e60c0388124d8ce3c078c4f352",
+  "declaration": "This timestamped digest commits the SHA-256 of the complete local freeze package, plus the runner/protocol hashes and exact fresh Git blob identities, before the v0.13 branch retrieves any selected fresh target CSV payload.",
+  "development_artifact_sha256": "568a0f6801097294c9320b677bde299c6adbfd31a5183b0f6d7ec895deb9e35b",
+  "freeze_manifest_sha256": "4eaa602d8ac51c0d80197489b59040158094a56f80f0ee67accdc3e01181620f",
+  "freeze_package_sha256": "29d799dc492fb2641bbeb52cc4fd7ab2446f125c9f99175277cb0db27e937ebb",
+  "freeze_package_size_bytes": 24777,
+  "fresh_payloads_materialized_at_digest_creation": false,
+  "fresh_test_blobs": {
+    "B2_circle_fast_rep2.csv": "85a6749006400b43a0049c9d0b0b5b6c6c70adac",
+    "B3_figure8_fast_rep2.csv": "e94bd244d95bcf1eaf28cc64581a59c48c093a89",
+    "B5_helix_fast_rep2.csv": "ed44edc416f32f3e8b5a4df031900ec25959eaed",
+    "B6_linear_ramp_rep2.csv": "5da2c40aa8b85b9c596adb45cc27ea900d656ed4",
+    "B7_oval_fast_rep2.csv": "eea070c2466842de9879e1b26c5b42973ecdb5bf",
+    "B8_star_fast_rep2.csv": "7bc1edc9985601c87a93feed55dec49b01e7dbfb",
+    "B9_trefoil_fast_rep1.csv": "9f1415945d3283ccf54859fb343f53785c23ed04"
+  },
+  "gates": {
+    "candidate_parameter_ratio_vs_rbf_max": 0.25,
+    "candidate_vs_constant_aggregate_ratio_max": 0.98,
+    "candidate_vs_constant_min_file_wins": 5,
+    "candidate_vs_cubic_ratio_max": 1.05,
+    "candidate_vs_motor_voltage_aggregate_ratio_max": 0.99,
+    "candidate_vs_quadratic_ratio_max": 1.05,
+    "candidate_vs_rbf_ratio_max": 1.05,
+    "candidate_vs_source_linear_aggregate_ratio_max": 0.99,
+    "candidate_vs_source_linear_min_file_wins": 5,
+    "candidate_vs_target_thrust_ratio_max": 1.05
+  },
+  "protocol_id": "v0.13-trust-limited-direct-force-cross-hardware-1",
+  "protocol_sha256": "05207d4a38c91c6cc8cc92bcc73c222f2cee76676ce8d8b76c5c71def2ca91ec",
+  "runner_sha256": "0f3709fc1a88e5a7750c85e84f81dc1229a80a563ae810adea11c0b10d28f97b",
+  "source_stats_sha256": "97a1cd82cdf231899dca742a9e85e9e1b2a32d3889d2ca2eea3744bf44add7cf",
+  "status": "FROZEN_BEFORE_COMPLETE_FRESH_TARGET_BYTE_IMPORT",
+  "trust_lambda": 0.5
+}

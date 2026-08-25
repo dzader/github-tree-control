@@ -1,0 +1,31 @@
+name: Causal Loom v0.13 frozen fresh-data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v013-trust-fresh-data-bridge-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  package-fresh-inputs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out frozen bridge commit
+        uses: actions/checkout@v4
+
+      - name: Retrieve and verify frozen fresh inputs
+        run: |
+          python causal_loom_v013/build_fresh_input_artifact.py \
+            --work-dir "$RUNNER_TEMP/causal-loom-v013-work" \
+            --output-dir "$RUNNER_TEMP/causal-loom-v013-artifact"
+
+      - name: Upload frozen fresh-input artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v013-fresh-inputs
+          path: ${{ runner.temp }}/causal-loom-v013-artifact
+          if-no-files-found: error
+          retention-days: 7
