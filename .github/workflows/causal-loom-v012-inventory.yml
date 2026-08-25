@@ -1,0 +1,52 @@
+name: Causal Loom v0.12 metadata-only inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v011-data-bridge-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out bridge branch
+        uses: actions/checkout@v4
+
+      - name: Build metadata-only inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/syediu/nanobench-iros2026.git "$RUNNER_TEMP/nanobench"
+          python - <<'PY'
+          import json, subprocess, os
+          from pathlib import Path
+          repo = Path(os.environ['RUNNER_TEMP']) / 'nanobench'
+          commit = '0ae7d689749db174dc779ab2f7c416cc12e14e2b'
+          raw = subprocess.check_output(
+              ['git', 'ls-tree', '-r', '-l', commit, 'datasets/dataset'],
+              cwd=repo,
+              text=True,
+          )
+          rows = []
+          for line in raw.splitlines():
+              left, path = line.split('\t', 1)
+              mode, kind, sha, size = left.split()
+              rows.append({'path': path, 'mode': mode, 'type': kind, 'sha': sha, 'size_bytes': int(size)})
+          out = Path(os.environ['RUNNER_TEMP']) / 'causal-loom-v012-inventory'
+          out.mkdir()
+          (out / 'inventory.json').write_text(json.dumps({'repository':'syediu/nanobench-iros2026','commit':commit,'entries':rows}, indent=2, sort_keys=True) + '\n')
+          (out / 'inventory.tsv').write_text('path\tsha\tsize_bytes\n' + ''.join(f"{r['path']}\t{r['sha']}\t{r['size_bytes']}\n" for r in rows))
+          print(f'wrote {len(rows)} metadata entries; no dataset blobs were checked out')
+          PY
+
+      - name: Upload metadata inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v012-metadata-inventory
+          path: ${{ runner.temp }}/causal-loom-v012-inventory
+          if-no-files-found: error
+          retention-days: 7
