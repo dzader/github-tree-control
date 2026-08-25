@@ -1,0 +1,39 @@
+{
+  "bridge_script_sha256": "9fa0c3788a966ef12e96f13790c65c2ad44aaecc97896d4cf2b3a784a91887c1",
+  "bridge_workflow_sha256": "f9ad16953d3775555d6eb6f858e1ef9f88be689f32e1a2135ac50ff9fbc72abd",
+  "calibration": {
+    "A1b_multisine_sysid_rep1.csv": "e549e1f3e036c8b4cb5e0b2b0c1aefe77e18fa5d"
+  },
+  "declaration": "This digest, bridge code, and workflow were committed before any selected fresh CSV payload was retrieved.",
+  "fresh_test_blobs": {
+    "B2_circle_fast_rep1.csv": "40aa756e6612eb8887f17d86871743d4fc25d786",
+    "B3_figure8_fast_rep1.csv": "a69f5f63c510f4144b9c324b3055d4a636156b1e",
+    "B5_helix_fast_rep1.csv": "1f430e15dd17459f810caffbeab0131ab8fdc139",
+    "B6_linear_ramp_rep1.csv": "90153f3e87a47179fe6c2611fab499a0b71967f0",
+    "B7_oval_fast_rep1.csv": "7b9c5d637bfacbda3fd68d694cb6c8b8de317619",
+    "B8_star_fast_rep1.csv": "8c9dcc7b9049441438d838cd5a363d0b4d7249cc",
+    "C4_battery_drain_rep2.csv": "6cd87237182f3a748ee851e6b499cac5ddd52966"
+  },
+  "gates": {
+    "candidate_must_have_positive_calibration_slope": true,
+    "candidate_parameter_ratio_vs_rbf_max": 0.25,
+    "candidate_predictions_must_all_be_finite": true,
+    "candidate_vs_constant_aggregate_ratio_max": 0.98,
+    "candidate_vs_constant_min_file_wins": 4,
+    "candidate_vs_cubic_ratio_max": 1.1,
+    "candidate_vs_motor_voltage_aggregate_ratio_max": 0.98,
+    "candidate_vs_quadratic_ratio_max": 1.05,
+    "candidate_vs_rbf_ratio_max": 1.1,
+    "candidate_vs_source_linear_aggregate_ratio_max": 0.98,
+    "candidate_vs_source_linear_min_file_wins": 5,
+    "candidate_vs_target_thrust_ratio_max": 1.05
+  },
+  "metadata_inventory_json_sha256": "84a3bfb00ac4a25e6c7453116c5b4acbf6c49d2d7f82e0bb862c37f1011ab81a",
+  "metadata_inventory_zip_sha256": "9c95ff32f161455a75e0d9e0599e2c1ee797e4a353d2c565710f7af076be16e3",
+  "protocol_id": "v0.12-direct-force-cross-hardware-1",
+  "protocol_sha256": "0d50a2543b44dc90c3357a426a649cb95a2604f6cf171533a71776dcd5a7463b",
+  "runner_sha256": "6edcdd7f7440cbeb869239358126bc8e84f37ee6f30433b779efbde8c51caa8e",
+  "source_stats_sha256": "97a1cd82cdf231899dca742a9e85e9e1b2a32d3889d2ca2eea3744bf44add7cf",
+  "status": "FROZEN_BEFORE_COMPLETE_FRESH_TARGET_BYTE_IMPORT",
+  "v010_results_sha256": "ed28e16b6ebb670bff1ee12b636a7d0e2e367c48a9542b33490de734941e8281"
+}
