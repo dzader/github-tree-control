@@ -1,0 +1,27 @@
+name: Causal Loom source-subspace development bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-source-subspace-dev-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve and verify v0.10 source trajectories
+        run: |
+          python causal_loom_source_subspace/build_source_artifact.py \
+            --work-dir "$RUNNER_TEMP/source-subspace-work" \
+            --output-dir "$RUNNER_TEMP/source-subspace-inputs"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v010-source-trajectories
+          path: ${{ runner.temp }}/source-subspace-inputs
+          if-no-files-found: error
+          retention-days: 7
