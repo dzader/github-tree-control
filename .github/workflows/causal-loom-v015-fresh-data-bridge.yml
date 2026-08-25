@@ -1,0 +1,27 @@
+name: Causal Loom v0.15 frozen fresh-data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v015-label-efficiency-bridge-20260824
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve and verify frozen public inputs
+        run: |
+          python causal_loom_v015/build_fresh_input_artifact.py \
+            --work-dir "$RUNNER_TEMP/v015-work" \
+            --output-dir "$RUNNER_TEMP/v015-inputs"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v015-fresh-inputs
+          path: ${{ runner.temp }}/v015-inputs
+          if-no-files-found: error
+          retention-days: 7
