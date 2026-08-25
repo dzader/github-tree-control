@@ -1,0 +1,59 @@
+{
+  "bridge_script_sha256": "f6725521e645b5ffd39c42d16ec62e6754da72c031024c0c50895fc59adf5d68",
+  "bridge_workflow_sha256": "c6c9303fea7f682478f2244d86d1fb797ec52061811280449006de2c3dfe01ca",
+  "calibration": {
+    "A1b_multisine_sysid_rep1.csv": "e549e1f3e036c8b4cb5e0b2b0c1aefe77e18fa5d"
+  },
+  "declaration": "Runner, protocol, fresh split, bridge, trust rule, metrics, and gates were frozen before any selected fresh CSV payload was retrieved.",
+  "fresh_test_blobs": {
+    "B2_circle_fast_rep3.csv": "26a375e5ed98485f8befc86090017c0e4135823c",
+    "B2_circle_medium_rep2.csv": "e78e2325f8c8d9e0e947e7597848addf128e881c",
+    "B2_circle_slow_rep2.csv": "aa518943e36b192a01df651e99843479d9655ac9",
+    "B5_helix_fast_rep3.csv": "9f8fda14492d7a98c4fa7c0aff5d2accd101f009",
+    "B5_helix_medium_rep2.csv": "f2ef6fa8f5b7b5f4e848caa0c595a44bfa601d08",
+    "B5_helix_slow_rep2.csv": "fe4b7043da9923102655d6ac9429eefad875f28a",
+    "B7_oval_fast_rep3.csv": "7f80d81492ae0c123cd88fd0789dc5fcfffb3e34",
+    "B7_oval_medium_rep2.csv": "2c9ff5eb3d875d9bdc8cfa1fbef43021014e4642",
+    "B7_oval_slow_rep2.csv": "f00fc9c1542441fec572492f17ea7f74206ff8a7",
+    "B8_star_fast_rep3.csv": "ad9a7b9a33730c078e1f6b1af123304931afafdf",
+    "B8_star_medium_rep2.csv": "e99c24c38944a50621d84810e55a0b6d592f3ee6",
+    "B8_star_slow_rep2.csv": "090436d106d2f87c5dffc9b6ac60d35d2c07d620",
+    "B9_trefoil_fast_rep2.csv": "8be19dab1775e16aaaee4c26cb86582be77a6f6f",
+    "B9_trefoil_medium_rep1.csv": "c34438ac7b43e68b9306d9ed283190bd4353b320",
+    "B9_trefoil_slow_rep1.csv": "51a336455b6465ba50a1700305bb8ee90886cd7b"
+  },
+  "gates": {
+    "candidate_must_have_positive_calibration_slope": true,
+    "candidate_parameter_ratio_vs_rbf_max": 0.25,
+    "candidate_predictions_must_all_be_finite": true,
+    "candidate_vs_constant_aggregate_ratio_max": 0.98,
+    "candidate_vs_constant_each_speed_min_wins": 3,
+    "candidate_vs_constant_each_speed_ratio_max": 1.0,
+    "candidate_vs_constant_max_file_ratio": 1.1,
+    "candidate_vs_constant_max_leave_one_out_ratio": 1.0,
+    "candidate_vs_constant_min_file_wins": 10,
+    "candidate_vs_cubic_ratio_max": 1.02,
+    "candidate_vs_fixed_half_ratio_max": 1.0,
+    "candidate_vs_full_strength_ratio_max": 1.02,
+    "candidate_vs_motor_voltage_ratio_max": 1.0,
+    "candidate_vs_quadratic_ratio_max": 1.02,
+    "candidate_vs_rbf_ratio_max": 1.05,
+    "candidate_vs_source_linear_ratio_max": 1.0,
+    "candidate_vs_target_thrust_ratio_max": 1.02,
+    "context_trust_must_vary_around_anchor": true
+  },
+  "metadata_inventory_json_sha256": "84a3bfb00ac4a25e6c7453116c5b4acbf6c49d2d7f82e0bb862c37f1011ab81a",
+  "metadata_inventory_zip_sha256": "9c95ff32f161455a75e0d9e0599e2c1ee797e4a353d2c565710f7af076be16e3",
+  "protocol_id": "v0.14-excitation-adaptive-trust-cross-hardware-1",
+  "protocol_md_sha256": "8692480076f2ca5a850d7b475f8dd0443022456323f0dc90e3b30acd042c80e5",
+  "protocol_sha256": "0d72dc839ea64a19ad9be106ac68337b4d5ffb94ebc0350dbafd06ad6fe72699",
+  "runner_sha256": "9625432ccc4a4d31c71a0fbac1d7cc15914b991d51016ca7e401591c0a3b8c34",
+  "source_stats_sha256": "97a1cd82cdf231899dca742a9e85e9e1b2a32d3889d2ca2eea3744bf44add7cf",
+  "speed_strata": {
+    "fast": 5,
+    "medium": 5,
+    "slow": 5
+  },
+  "status": "FROZEN_BEFORE_COMPLETE_FRESH_TARGET_BYTE_IMPORT",
+  "v010_results_sha256": "ed28e16b6ebb670bff1ee12b636a7d0e2e367c48a9542b33490de734941e8281"
+}
