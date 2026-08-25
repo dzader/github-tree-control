@@ -1,0 +1,67 @@
+name: Causal Loom v0.11 development
+
+on:
+  push:
+    branches:
+      - causal-loom-v011-data-bridge-20260824
+    paths:
+      - '.causal-loom-v011/**'
+      - '.github/workflows/causal-loom-v011-development.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  develop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v011-data-bridge-20260824
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Restore frozen executable
+        shell: bash
+        run: |
+          base64 --decode .causal-loom-v011/develop_v011.py.gz.b64 | gzip --decompress > /tmp/develop_v011.py
+          test "$(sha256sum /tmp/develop_v011.py | cut -d' ' -f1)" = "31f4bfff51cf4c8a324a99c8bfd3548b4ed2594fd9eae413ffc20d1b869e2d4c"
+          python -m py_compile /tmp/develop_v011.py
+      - name: Install deterministic numerical dependencies
+        run: pip install numpy==2.1.3 pandas==2.2.3
+      - name: Retrieve frozen source-hardware trajectories
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export GIT_LFS_SKIP_SMUDGE=1
+          git clone --filter=blob:none https://github.com/idsia-robotics/nanodrone-sysid-benchmark.git /tmp/idsia
+          git -C /tmp/idsia checkout 1038275426ba41135ac35afb1d8597c757b032b0
+          git -C /tmp/idsia lfs install --local
+          git -C /tmp/idsia lfs pull --include='data/train/square_20251017_run1.csv,data/train/square_20251017_run2.csv,data/train/random_20251017_run1.csv,data/train/random_20251017_run2.csv,data/train/chirp_20251017_run1.csv,data/train/chirp_20251017_run2.csv'
+      - name: Run development-only selection
+        shell: bash
+        run: |
+          mkdir -p causal-loom-v011-development-output
+          python /tmp/develop_v011.py \
+            --idsia-dir /tmp/idsia \
+            --work-dir /tmp/causal-loom-v011 \
+            --output-dir causal-loom-v011-development-output \
+            | tee causal-loom-v011-development-output/stdout.log
+          cp /tmp/develop_v011.py causal-loom-v011-development-output/develop_v011.py
+          cp .causal-loom-v011/DEVELOPMENT_PROTOCOL.json causal-loom-v011-development-output/
+          sha256sum causal-loom-v011-development-output/* > causal-loom-v011-development-output/FILES_SHA256SUMS.txt
+      - name: Upload immutable development evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v011-development-evidence
+          path: causal-loom-v011-development-output
+          if-no-files-found: error
+          retention-days: 90
