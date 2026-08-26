@@ -108,7 +108,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/uiuc_holdout"
           python - <<'PY' > "$RUNNER_TEMP/download.tsv"
           import json,os
-          x=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'holdout_manifest.json'))
+          x=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'holdout_manifest.json')))
           for f in x['families']:
             for r in [f['calibration_run'],*f['confirmatory_runs']]:
               print(f"{r['blob_sha']}\t{r['path']}")
