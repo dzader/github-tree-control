@@ -1,0 +1,26 @@
+{
+  "protocol_stage": "v0.15-development-before-external-TU-Delft-content-access",
+  "source": {
+    "uiuc_repository": "pfreitas97/Parser_UIUC_AeroData",
+    "uiuc_commit": "e95db20206f7e89fe6d639ce030e887ec2ce7277",
+    "v014_development_data_artifact_digest": "sha256:441ddffcd6d47819af2a9f8e7a88c440811b465e42aa5b5c3e0a62693096e2b0",
+    "v014_split_protocol_sha": "c2598fa94b29c7a07840b7ed8aa059d734184111"
+  },
+  "coordinate_family": "z_b = V_a * (RPM/5000)^b",
+  "gauge_fix": "Airspeed exponent is fixed to +1 because a global monotone power/scale gauge otherwise makes the exponent vector non-identifiable. Family-specific constant scale is explicitly not claimed identifiable.",
+  "airspeed_reconstruction_note": "UIUC dynamic files report J rather than raw airspeed. Development reconstructs V_a algebraically as J*(RPM/60)*D. Therefore this stage validates raw-variable coordinate form after algebraic reconstruction, not sensor-level discovery.",
+  "objective": "For each propeller family, compare dynamic CT and CP curves across distinct RPM runs in candidate z_b using interpolation on common support. Family score is median pair NRMSE. Selection minimizes median sqrt(CT_score*CP_score) across training families.",
+  "search_grid": {"b_min": -1.6, "b_max": -0.6, "step": 0.02},
+  "valid_family_count": 137,
+  "fold_rule": "sha256('v015-cv5\\0'+family) mod 5",
+  "fold_results": [
+    {"fold":0,"selected_b":-1.12,"test_joint":0.06088892744582828,"canonical_b_minus1_joint":0.08597602849017749},
+    {"fold":1,"selected_b":-1.12,"test_joint":0.05485631585299872,"canonical_b_minus1_joint":0.07359340190103789},
+    {"fold":2,"selected_b":-1.14,"test_joint":0.0661166741198283,"canonical_b_minus1_joint":0.08761414430986045},
+    {"fold":3,"selected_b":-1.12,"test_joint":0.060287342370288814,"canonical_b_minus1_joint":0.07597107517837737},
+    {"fold":4,"selected_b":-1.12,"test_joint":0.061757840239326046,"canonical_b_minus1_joint":0.09250115264722096}
+  ],
+  "full_development_optima": {"CT_b":-1.10,"CP_b":-1.12,"joint_b":-1.12},
+  "frozen_external_b": -1.12,
+  "interpretation_before_external_test": "The identifiable within-family coordinate class is approximately V_a/RPM^1.12, reproducing v0.14's correction without supplying J to the search. This is only development evidence until independently replicated."
+}
