@@ -24,59 +24,58 @@ jobs:
           ref: causal-loom-v014-dynamic-propeller-20260825
       - name: Build filename/hash-only dynamic inventory
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git clone --filter=blob:none --no-checkout https://github.com/pfreitas97/Parser_UIUC_AeroData.git "$RUNNER_TEMP/uiuc"
-          git -C "$RUNNER_TEMP/uiuc" rev-parse "$UIUC_COMMIT" >/dev/null
-          git -C "$RUNNER_TEMP/uiuc" ls-tree -r -l "$UIUC_COMMIT" Propeller_Data_V1 Propeller_Data_V2 > "$RUNNER_TEMP/tree.tsv"
+          curl --fail --silent --show-error -L \
+            -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/pfreitas97/Parser_UIUC_AeroData/git/trees/'"$UIUC_COMMIT"'?recursive=1' \
+            > "$RUNNER_TEMP/tree.json"
           python - <<'PY'
           import csv, hashlib, json, os, re
           from pathlib import Path
-
-          root = Path(os.environ['RUNNER_TEMP'])
+          root=Path(os.environ['RUNNER_TEMP'])
+          tree=json.loads((root/'tree.json').read_text())
+          if tree.get('truncated'):
+              raise RuntimeError('GitHub recursive tree response was truncated')
           entries=[]
           pat=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$')
-          for line in (root/'tree.tsv').read_text().splitlines():
-              left,path=line.split('\t',1)
-              mode,kind,sha,size=left.split()
-              if kind!='blob' or not path.endswith('.txt') or '_static_' in path:
+          for row in tree['tree']:
+              path=row.get('path','')
+              if row.get('type')!='blob' or not path.startswith(('Propeller_Data_V1/','Propeller_Data_V2/')):
                   continue
-              name=Path(path).name
-              m=pat.match(name)
-              if not m:
+              if not path.endswith('.txt') or '_static_' in path:
                   continue
-              prefix=m.group('prefix')
-              parts=prefix.split('_')
-              if len(parts)<3:
-                  continue
-              family='_'.join(parts[:-1])
-              provenance=parts[-1]
-              rpm=int(m.group('rpm'))
-              brand=family.split('_',1)[0]
-              rank_hash=hashlib.sha256((path+'\0'+sha).encode()).hexdigest()
-              entries.append({'path':path,'blob_sha':sha,'size_bytes':int(size),'family':family,
-                  'brand':brand,'provenance_token':provenance,'rpm_from_filename':rpm,'rank_hash':rank_hash})
+              m=pat.match(Path(path).name)
+              if not m: continue
+              parts=m.group('prefix').split('_')
+              if len(parts)<3: continue
+              family='_'.join(parts[:-1]); provenance=parts[-1]
+              rpm=int(m.group('rpm')); brand=family.split('_',1)[0]
+              sha=row['sha']; size=int(row.get('size',0))
+              entries.append({'path':path,'blob_sha':sha,'size_bytes':size,'family':family,'brand':brand,
+                  'provenance_token':provenance,'rpm_from_filename':rpm,
+                  'rank_hash':hashlib.sha256((path+'\0'+sha).encode()).hexdigest()})
           entries.sort(key=lambda e:e['path'])
-          fam={}
-          for e in entries: fam.setdefault(e['family'],[]).append(e)
+          grouped={}
+          for e in entries: grouped.setdefault(e['family'],[]).append(e)
           families=[]
-          for name,rows in sorted(fam.items()):
+          for name,rows in sorted(grouped.items()):
               rpms=sorted({r['rpm_from_filename'] for r in rows})
               families.append({'family':name,'brand':rows[0]['brand'],'file_count':len(rows),
                   'distinct_rpm_count':len(rpms),'rpm_min':min(rpms),'rpm_max':max(rpms),
                   'rank_hash':hashlib.sha256(('family\0'+name+'\0'+'\0'.join(r['blob_sha'] for r in rows)).encode()).hexdigest()})
           out=root/'v014-dynamic-inventory'; out.mkdir()
-          payload={'repository':'pfreitas97/Parser_UIUC_AeroData','commit':os.environ['UIUC_COMMIT'],
-                   'contents_read':False,'entry_count':len(entries),'family_count':len(families),
-                   'entries':entries,'families':families}
-          text=json.dumps(payload,indent=2,sort_keys=True)+'\n'
-          (out/'inventory.json').write_text(text)
+          payload={'repository':'pfreitas97/Parser_UIUC_AeroData','commit':os.environ['UIUC_COMMIT'],'contents_read':False,
+                   'entry_count':len(entries),'family_count':len(families),'entries':entries,'families':families}
+          text=json.dumps(payload,indent=2,sort_keys=True)+'\n'; (out/'inventory.json').write_text(text)
           (out/'INVENTORY_SHA256.txt').write_text(hashlib.sha256(text.encode()).hexdigest()+'  inventory.json\n')
           with (out/'families.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=['family','brand','file_count','distinct_rpm_count','rpm_min','rpm_max','rank_hash']); w.writeheader(); w.writerows(families)
           with (out/'entries.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=['path','family','brand','provenance_token','rpm_from_filename','blob_sha','size_bytes','rank_hash']); w.writeheader(); w.writerows(entries)
-          print(f"metadata only: {len(entries)} dynamic files across {len(families)} families")
+          print(f'metadata only: {len(entries)} dynamic files across {len(families)} families')
           PY
       - uses: actions/upload-artifact@v4
         with:
