@@ -1,0 +1,40 @@
+{
+  "protocol_stage": "v0.15-data-split-before-binary-content-access",
+  "source": {
+    "repository": "tudelft/propeller_airspeed_sensor",
+    "commit": "6db5cc19327f0d6c31a4e51783a442704007dbc3"
+  },
+  "development_files": [
+    {"path":"data/input/BEM.mat","blob_sha":"2e201542e14188eb5ca24cba5e60af96c727532d","size_bytes":46117,"environment":"bem"},
+    {"path":"data/input/wt.mat","blob_sha":"d706b64eed073c892d03e201c20f666714c4f5a3","size_bytes":1991327,"environment":"wind_tunnel"},
+    {"path":"data/input/training.mat","blob_sha":"a4bcd7301489fb446e04b5b5e695d1c30926000c","size_bytes":4245965,"environment":"flight_training"}
+  ],
+  "holdout_file": {
+    "path":"data/input/test.mat",
+    "blob_sha":"479d63305b5bf3b242aa310c54169e7c26876122",
+    "size_bytes":3341873,
+    "environment":"flight_test"
+  },
+  "binary_development_contents_read_before_split": false,
+  "holdout_contents_read_before_freeze": false,
+  "development_search_family": {
+    "source_coordinate": "x_k = P / omega^k",
+    "write_normalization": "y_a = airspeed / omega^a",
+    "a_grid_initial": {"min":0.0,"max":2.0,"step":0.1},
+    "k_grid_initial": {"min":0.0,"max":5.0,"step":0.1},
+    "projective_polynomial_degree_max": 4,
+    "coordinate_scaling": "single pooled development transform per (a,k), never per-world normalization",
+    "selection_principle": "family-disjoint/world-disjoint projective mechanism coherence plus few-probe transfer; no dimensional-unit constraints supplied"
+  },
+  "expected_physics_for_posthoc_audit_only": {
+    "a":1.0,
+    "k":3.0,
+    "note":"This expectation is recorded for falsification/audit but must not be hard-coded into candidate scoring or frozen model selection."
+  },
+  "source_code_inspected_before_split": [
+    "src/airspeed_fit_BEM.m",
+    "src/airspeed_fit_WT.m",
+    "src/airspeed_fit_AS.m",
+    "src/airspeed_predict.m"
+  ]
+}
