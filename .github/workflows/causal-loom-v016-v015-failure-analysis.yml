@@ -1,0 +1,81 @@
+name: Causal Loom v0.16 development from preserved v0.15 failure
+
+on:
+  push:
+    branches:
+      - causal-loom-v015-raw-coordinate-20260826
+    paths:
+      - '.github/workflows/causal-loom-v016-v015-failure-analysis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  EXTERNAL_COMMIT: 6db5cc19327f0d6c31a4e51783a442704007dbc3
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v015-raw-coordinate-20260826
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy==2.1.3 scipy==1.14.1
+      - name: Restore preserved v0.15 runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .causal-loom-v015/run_v015_frozen.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/v015.py"
+          test "$(sha256sum "$RUNNER_TEMP/v015.py" | cut -d' ' -f1)" = "d3114b86a30423247a588d2b0a34a19f91bfd76355cac52c27c96562e3a10031"
+      - name: Retrieve already-open v0.15 development datasets
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L "https://raw.githubusercontent.com/tudelft/propeller_airspeed_sensor/$EXTERNAL_COMMIT/data/input/wt.mat" -o "$RUNNER_TEMP/wt.mat"
+          curl --fail --silent --show-error -L "https://raw.githubusercontent.com/tudelft/propeller_airspeed_sensor/$EXTERNAL_COMMIT/data/input/test.mat" -o "$RUNNER_TEMP/test.mat"
+          test "$(git hash-object "$RUNNER_TEMP/wt.mat")" = "d706b64eed073c892d03e201c20f666714c4f5a3"
+          test "$(git hash-object "$RUNNER_TEMP/test.mat")" = "479d63305b5bf3b242aa310c54169e7c26876122"
+      - name: Scan coordinate exponent by three independent objectives
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, importlib.util, json, math, os
+          from pathlib import Path
+          import numpy as np
+          spec=importlib.util.spec_from_file_location('v015', Path(os.environ['RUNNER_TEMP'])/'v015.py')
+          m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+          p=json.load(open('.causal-loom-v015/V015_FROZEN_PROTOCOL.json'))
+          wt=m.preprocess_wt(Path(os.environ['RUNNER_TEMP'])/'wt.mat',p)
+          fl=m.preprocess_flight(Path(os.environ['RUNNER_TEMP'])/'test.mat',p)
+          rows=[]
+          for b in np.arange(-2.0,-0.499999,0.02):
+              b=float(round(b,10))
+              co=m.collapse_metric(wt['airspeed'],wt['rpm'],wt['cp'],b,p)
+              cv=m.bin_cv(wt['airspeed'],wt['rpm'],wt['cp'],b,p)
+              ft=m.flight_transfer(wt,fl,b,-1.0,p)
+              rows.append({'b':b,'collapse':co['median'],'cv':cv['median'],'flight_nrmse':ft.get('corrected_nrmse',float('nan')),'flight_ratio_vs_bminus1':ft.get('ratio',float('nan')),'flight_points':ft.get('scored_points',0)})
+          def best(key):
+              x=[r for r in rows if math.isfinite(r[key])]
+              return min(x,key=lambda r:r[key])
+          summary={'best_collapse':best('collapse'),'best_cv':best('cv'),'best_flight':best('flight_nrmse'),'frozen_b_row':min(rows,key=lambda r:abs(r['b']+1.12)),'canonical_row':min(rows,key=lambda r:abs(r['b']+1.0))}
+          out=Path('causal-loom-v016-development-output'); out.mkdir(exist_ok=True)
+          (out/'summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          with (out/'scan.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+          print(json.dumps(summary,indent=2,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v016-v015-failure-analysis
+          path: causal-loom-v016-development-output
+          if-no-files-found: error
+          retention-days: 90
