@@ -1,0 +1,73 @@
+{
+  "protocol_id": "v0.16-gauge-regularized-pmcd-uiuc-volume4-1",
+  "frozen_before_holdout_content_access": true,
+  "claim_boundary": "A pass supports a low-dimensional, gauge-regularized mechanism-coordinate realization: a shared coordinate prior can be rebound from ten input-selected calibration measurements in a new physical system and improve held-out executable transfer without arbitrary source warping. It does not establish unique dimensional coordinates, exact Reynolds-number physics, arbitrary nonlinear reparameterization, broad-domain generality, or general AI scientific discovery.",
+  "development": {
+    "shared_prior_b": -1.12,
+    "shrinkage_lambda": 0.03,
+    "lambda_selection": "nested family-disjoint 5-fold development; all five outer folds independently selected lambda=0.03",
+    "development_valid_family_count": 101,
+    "adaptive_vs_global_paired_median_ratio": 0.95820,
+    "adaptive_vs_canonical_paired_median_ratio": 0.73760
+  },
+  "holdout": {
+    "source": "UIUC Propeller Database Volume 4, Version 1 (2022-06-12)",
+    "index_url": "https://m-selig.ae.illinois.edu/props/volume-4/propDB-volume-4.html",
+    "index_sha256": "11899f61683ac6422605c359f6dd7ea5aa89bca8dc86ab3eb0db3df3ce09bea0",
+    "metadata_inventory_sha256": "72b3f2e2f6dc7509cc99f9cdf596d1a3a7566b95b60cfbabca9684fc85be6415",
+    "family_count": 16,
+    "dynamic_run_count": 121,
+    "excluded_families": ["apce_12x6"],
+    "exclusion_reason": "one apce_12x6 dynamic file was inspected only to validate URL format before the holdout protocol was frozen; the entire family is excluded",
+    "metadata_reconstruction": "parse .txt hrefs from the frozen index; accept apce_DxP_provenance_RPM.txt; exclude apce_12x6; sort each family by (RPM,url); exact href deduplication only"
+  },
+  "coordinate": {
+    "formula": "z_b = airspeed_mps * (RPM/5000)^b",
+    "airspeed_from_holdout_row": "airspeed_mps = J * (RPM/60) * diameter_m",
+    "shared_prior_b": -1.12,
+    "candidate_b_min": -1.8,
+    "candidate_b_max": -0.8,
+    "candidate_b_step": 0.04,
+    "shrinkage_lambda": 0.03,
+    "canonical_control_b": -1.0,
+    "fixed_global_control_b": -1.12,
+    "note": "J is used only to algebraically reconstruct dimensional airspeed because UIUC files report J rather than tunnel airspeed. J itself is not supplied to the coordinate binder or predictors."
+  },
+  "calibration": {
+    "run_selection": "sort runs by metadata RPM; calibration indices are round((n-1)/3) and round(2*(n-1)/3), with ties/duplicates resolved upward to distinct indices if ever needed",
+    "probe_quantiles_in_airspeed": [0.1,0.3,0.5,0.7,0.9],
+    "probe_selection": "for each calibration run, compute linear empirical airspeed quantile targets and choose nearest distinct observed row sequentially; ties choose lower row index",
+    "probe_count_total": 10,
+    "binder_model_degree": 2,
+    "binder_score": "symmetric cross-calibration-run prediction error; fit CT(z) and CP(z) separately with degree-2 Chebyshev on five probes from one run, predict in-support probes of the other, reverse direction, geometric-mean normalized CT/CP error, then add lambda*(b-b0)^2",
+    "candidate_invalid_if": "either direction has fewer than 3 target probes inside source calibration support"
+  },
+  "prediction": {
+    "model_degree": 3,
+    "fit": "combine all ten calibration probes and fit CT(z) and CP(z) separately with degree-3 Chebyshev least squares",
+    "confirmatory_runs": "all non-calibration RPM runs",
+    "common_scoring_support": "a confirmatory row is scored only if its coordinate lies within the calibration support for adaptive, fixed-global, and canonical models; therefore every compared model is scored on exactly the same physical rows",
+    "ct_range_floor": 0.01,
+    "cp_range_floor": 0.01,
+    "family_joint_error": "sqrt(CT_NRMSE * CP_NRMSE) on all scored confirmatory rows concatenated within family",
+    "minimum_scored_confirmatory_points_per_family": 20
+  },
+  "controls": {
+    "fixed_global": "same ten probes and degree-3 CT/CP models with b=-1.12",
+    "canonical": "same ten probes and degree-3 CT/CP models with b=-1.0",
+    "unregularized_adaptive": "diagnostic only; same candidate grid and binder without shrinkage"
+  },
+  "primary_gates": {
+    "minimum_valid_families": 14,
+    "zero_catastrophic_families_joint_nrmse_gt": 0.5,
+    "median_adaptive_joint_nrmse_lte": 0.08,
+    "adaptive_vs_fixed_global_paired_median_ratio_lte": 0.98,
+    "adaptive_vs_fixed_global_win_fraction_gte": 0.50,
+    "adaptive_vs_canonical_paired_median_ratio_lte": 0.85,
+    "adaptive_vs_canonical_win_fraction_gte": 0.65
+  },
+  "strong_diagnostics": {
+    "regularized_vs_unregularized_paired_median_ratio_lte": 1.0,
+    "selected_b_not_boundary_fraction_gte": 0.75
+  }
+}
