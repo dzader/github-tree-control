@@ -1,0 +1,97 @@
+name: Causal Loom v0.14 development dynamic data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v014-dynamic-propeller-20260825
+    paths:
+      - '.github/workflows/causal-loom-v014-development-data.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UIUC_COMMIT: e95db20206f7e89fe6d639ce030e887ec2ce7277
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v014-dynamic-propeller-20260825
+      - name: Build exact development manifest from frozen metadata split
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L \
+            -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/pfreitas97/Parser_UIUC_AeroData/git/trees/'"$UIUC_COMMIT"'?recursive=1' \
+            > "$RUNNER_TEMP/tree.json"
+          python - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          split=json.loads(Path('.causal-loom-v014/V014_SPLIT_PROTOCOL.json').read_text())
+          tree=json.loads((root/'tree.json').read_text())
+          if tree.get('truncated'): raise RuntimeError('tree truncated')
+          hold=set(split['holdout_families']); rx=re.compile(split['selection_rules']['standard_family_regex'])
+          pat=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$')
+          rows=[]
+          for e in tree['tree']:
+            path=e.get('path','')
+            if e.get('type')!='blob' or not path.startswith(('Propeller_Data_V1/','Propeller_Data_V2/')) or not path.endswith('.txt') or '_static_' in path: continue
+            m=pat.match(Path(path).name)
+            if not m: continue
+            parts=m.group('prefix').split('_')
+            if len(parts)<3: continue
+            family='_'.join(parts[:-1]); brand=family.split('_',1)[0]
+            fm=rx.search(family)
+            if not fm or brand in split['selection_rules']['exclude_brand']: continue
+            D=float(fm.group('D'))
+            if not (split['selection_rules']['diameter_in_range'][0] <= D <= split['selection_rules']['diameter_in_range'][1]): continue
+            rank=hashlib.sha256((path+'\0'+e['sha']).encode()).hexdigest()
+            rows.append({'family':family,'path':path,'sha':e['sha'],'rpm':int(m.group('rpm')),'rank':rank})
+          byfam={}
+          for r in rows: byfam.setdefault(r['family'],[]).append(r)
+          manifest=[]
+          for family,rs in sorted(byfam.items()):
+            byrpm={}
+            for r in rs: byrpm.setdefault(r['rpm'],[]).append(r)
+            uniq=[sorted(v,key=lambda x:x['rank'])[0] for v in byrpm.values()]
+            uniq=sorted(uniq,key=lambda x:x['rpm'])
+            if len(uniq) < split['selection_rules']['min_distinct_rpm'] or family in hold: continue
+            manifest.extend(uniq)
+          fams=sorted({r['family'] for r in manifest})
+          if len(fams) != split['development_family_count']:
+            raise RuntimeError(f'development family count drift: {len(fams)} != {split["development_family_count"]}')
+          out=root/'v014-development'; out.mkdir()
+          (out/'manifest.json').write_text(json.dumps({'contents_read':False,'families':fams,'files':manifest},indent=2,sort_keys=True)+'\n')
+          with (root/'download.tsv').open('w') as f:
+            for r in manifest: f.write(f"{r['sha']}\t{r['path']}\n")
+          print(f'frozen development manifest: {len(fams)} families, {len(manifest)} files')
+          PY
+      - name: Retrieve development files only and verify immutable blob SHAs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v014-development/data"
+          while IFS=$'\t' read -r sha path; do
+            target="$RUNNER_TEMP/v014-development/data/$path"
+            mkdir -p "$(dirname "$target")"
+            curl --fail --silent --show-error -L \
+              "https://raw.githubusercontent.com/pfreitas97/Parser_UIUC_AeroData/$UIUC_COMMIT/$path" \
+              -o "$target"
+            actual=$(git hash-object "$target")
+            test "$actual" = "$sha"
+          done < "$RUNNER_TEMP/download.tsv"
+          cp .causal-loom-v014/V014_SPLIT_PROTOCOL.json "$RUNNER_TEMP/v014-development/"
+          find "$RUNNER_TEMP/v014-development" -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/v014-development/FILES_SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v014-development-dynamic-data
+          path: ${{ runner.temp }}/v014-development
+          if-no-files-found: error
+          retention-days: 90
