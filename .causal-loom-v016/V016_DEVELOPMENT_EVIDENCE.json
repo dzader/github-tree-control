@@ -1,0 +1,56 @@
+{
+  "protocol_stage": "v0.16-development-before-UIUC-Volume4-content-access",
+  "parent_failure": {
+    "v015_frozen_commit": "b55994e1960226fa4799a1a5eb35ebc6cf1e157b",
+    "v015_primary_pass": false,
+    "frozen_b": -1.12,
+    "external_wt_collapse_ratio": 0.9261662221444895,
+    "external_wt_bin_cv_ratio": 0.7800120095981954,
+    "zero_calibration_wt_to_flight_ratio": 0.8716139342861636
+  },
+  "post_failure_objective_separation": {
+    "best_wt_collapse_b": -1.44,
+    "best_wt_cv_b": -1.58,
+    "best_wt_to_flight_b": -1.22,
+    "best_wt_to_flight_nrmse": 0.050206840045322575,
+    "canonical_flight_nrmse": 0.05951074236873349,
+    "interpretation": "local curve collapse and local prediction CV choose exponents that transfer worse to flight; held-out executable transfer is a different objective"
+  },
+  "adaptive_binder": {
+    "coordinate": "z_b = airspeed * (RPM/5000)^b",
+    "shared_prior_b": -1.12,
+    "candidate_grid": [-1.8,-0.8,0.04],
+    "calibration_runs_per_family": 2,
+    "input_selected_probes_per_calibration_run": 5,
+    "probe_quantiles": [0.1,0.3,0.5,0.7,0.9],
+    "binder": "symmetric cross-calibration-run CT/CP degree-2 Chebyshev prediction mismatch plus lambda*(b-b0)^2",
+    "nested_cv_lambda_grid": [0.0,0.001,0.003,0.01,0.03,0.1,0.3,1.0],
+    "selected_lambda_each_outer_fold": [0.03,0.03,0.03,0.03,0.03]
+  },
+  "outer_fold_results": [
+    {"fold":0,"adaptive_median":0.035165,"fixed_global_median":0.043433,"paired_median_ratio":0.8610,"win_fraction":0.5625},
+    {"fold":1,"adaptive_median":0.050665,"fixed_global_median":0.049607,"paired_median_ratio":0.9625,"win_fraction":0.5652},
+    {"fold":2,"adaptive_median":0.037498,"fixed_global_median":0.052495,"paired_median_ratio":0.9198,"win_fraction":0.5263},
+    {"fold":3,"adaptive_median":0.041724,"fixed_global_median":0.051712,"paired_median_ratio":0.9316,"win_fraction":0.5769},
+    {"fold":4,"adaptive_median":0.042998,"fixed_global_median":0.046518,"paired_median_ratio":0.9732,"win_fraction":0.5294}
+  ],
+  "aggregate": {
+    "valid_families": 101,
+    "adaptive_median_joint_error": 0.040864,
+    "fixed_global_median_joint_error": 0.048329,
+    "canonical_median_joint_error": 0.058978,
+    "adaptive_vs_global_paired_median_ratio": 0.95820,
+    "adaptive_vs_global_win_fraction": 0.5545,
+    "adaptive_vs_canonical_paired_median_ratio": 0.73760,
+    "adaptive_vs_canonical_win_fraction": 0.7327,
+    "selected_b_distribution": {"min":-1.68,"p10":-1.36,"p25":-1.28,"median":-1.16,"p75":-1.08,"p90":-0.96,"max":-0.8}
+  },
+  "fresh_holdout_selection": {
+    "dataset": "UIUC Propeller Database Volume 4",
+    "metadata_only_family_count": 16,
+    "metadata_only_dynamic_run_count": 121,
+    "excluded_family": "apce_12x6",
+    "metadata_inventory_sha256": "72b3f2e2f6dc7509cc99f9cdf596d1a3a7566b95b60cfbabca9684fc85be6415",
+    "holdout_measurement_contents_read": false
+  }
+}
