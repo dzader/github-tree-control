@@ -1,0 +1,72 @@
+name: Causal Loom v0.17 post-failure Volume 4 data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v016-adaptive-gauge-20260826
+    paths:
+      - '.github/workflows/causal-loom-v017-volume4-postfailure-data.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v016-adaptive-gauge-20260826
+      - name: Reconstruct consumed Volume-4 inventory and download its 121 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p volume4-postfailure-data
+          INDEX='https://m-selig.ae.illinois.edu/props/volume-4/propDB-volume-4.html'
+          curl --fail --silent --show-error -L "$INDEX" -o volume4-postfailure-data/index.html
+          python - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          html=Path('volume4-postfailure-data/index.html').read_text(errors='replace')
+          assert hashlib.sha256(html.encode()).hexdigest()=='11899f61683ac6422605c359f6dd7ea5aa89bca8dc86ab3eb0db3df3ce09bea0'
+          hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
+          pat=re.compile(r'^(?:\.\./)?(?:data/)?(?P<name>apce_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)_(?P<prov>[^_/]+)_(?P<rpm>\d{3,5})\.txt)$',re.I)
+          by={};base='https://m-selig.ae.illinois.edu/props/volume-4/'
+          for href in hrefs:
+              m=pat.match(href.lstrip('./'))
+              if not m: continue
+              fam=f"apce_{m.group('D')}x{m.group('P')}"
+              if fam.lower()=='apce_12x6': continue
+              row={'url':urljoin(base,href),'filename':m.group('name'),'family':fam,'diameter_in':float(m.group('D')),'pitch_in':float(m.group('P')),'rpm':int(m.group('rpm'))}
+              by.setdefault(fam,[]).append(row)
+          fams=[]
+          for fam,rows in sorted(by.items()):
+              seen=set();u=[]
+              for r in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if r['url'] in seen: continue
+                  seen.add(r['url']);u.append(r)
+              fams.append({'family':fam,'diameter_in':u[0]['diameter_in'],'pitch_in':u[0]['pitch_in'],'runs':u})
+          payload={'families':fams}; Path('volume4-postfailure-data/inventory.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          with Path('volume4-postfailure-data/download.tsv').open('w') as f:
+              for fam in fams:
+                  for r in fam['runs']: f.write(r['url']+'\t'+r['filename']+'\n')
+          assert sum(len(f['runs']) for f in fams)==121
+          PY
+          mkdir -p volume4-postfailure-data/data
+          export DATADIR="$PWD/volume4-postfailure-data/data"
+          cat volume4-postfailure-data/download.tsv | xargs -P 12 -d '\n' -I{} bash -c '
+            line="$1"; url="${line%%$'"'"'\t'"'"'*}"; name="${line#*$'"'"'\t'"'"'}";
+            curl --fail --silent --show-error -L --retry 3 "$url" -o "$DATADIR/$name"; test -s "$DATADIR/$name"
+          ' _ {}
+          test "$(find volume4-postfailure-data/data -type f | wc -l)" -eq 121
+          cp /mnt/data/nonexistent 2>/dev/null || true
+          sha256sum volume4-postfailure-data/data/* > volume4-postfailure-data/DATA_SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v017-volume4-postfailure-data
+          path: volume4-postfailure-data
+          if-no-files-found: error
+          retention-days: 30
