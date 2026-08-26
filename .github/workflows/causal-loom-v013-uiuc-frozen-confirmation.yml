@@ -1,0 +1,100 @@
+name: Causal Loom v0.13 frozen UIUC confirmation
+
+on:
+  push:
+    branches:
+      - causal-loom-v011-data-bridge-20260824
+    paths:
+      - '.causal-loom-v013/**'
+      - '.github/workflows/causal-loom-v013-uiuc-frozen-confirmation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  NUMEXPR_NUM_THREADS: '1'
+
+jobs:
+  frozen-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out frozen experiment commit
+        uses: actions/checkout@v4
+
+      - name: Verify frozen protocol and executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum .causal-loom-v013/UIUC_FROZEN_PROTOCOL.json | cut -d' ' -f1)" = "943eb2b5e0e173fdee95f0685f009d5aed0b0a10f028a08420f693a39f5ee2e4"
+          test "$(sha256sum .causal-loom-v013/run_uiuc_frozen.py | cut -d' ' -f1)" = "57ef9d041f221b939e53bdc54eb96e165cdea21e55d72fc7417eb70435fc450d"
+
+      - name: Set up deterministic numerical runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pinned dependency
+        run: pip install numpy==2.1.3
+
+      - name: Run executable self-test before holdout access
+        run: python .causal-loom-v013/run_uiuc_frozen.py --self-test
+
+      - name: Retrieve only the frozen selected UIUC files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/pfreitas97/Parser_UIUC_AeroData.git /tmp/uiuc
+          git -C /tmp/uiuc sparse-checkout init --no-cone
+          python - <<'PY' > /tmp/uiuc-selected-paths.txt
+          import json
+          p = json.load(open('.causal-loom-v013/UIUC_FROZEN_PROTOCOL.json'))
+          for item in p['holdout']['selected_files']:
+              print('/' + item['path'])
+          PY
+          git -C /tmp/uiuc sparse-checkout set --no-cone --stdin < /tmp/uiuc-selected-paths.txt
+          git -C /tmp/uiuc checkout e95db20206f7e89fe6d639ce030e887ec2ce7277
+          test "$(git -C /tmp/uiuc rev-parse HEAD)" = "e95db20206f7e89fe6d639ce030e887ec2ce7277"
+
+      - name: Execute first and permanent frozen holdout evaluation
+        id: execute
+        shell: bash
+        run: |
+          mkdir -p causal-loom-v013-uiuc-frozen-evidence
+          set +e
+          python .causal-loom-v013/run_uiuc_frozen.py \
+            --repo /tmp/uiuc \
+            --protocol .causal-loom-v013/UIUC_FROZEN_PROTOCOL.json \
+            --output causal-loom-v013-uiuc-frozen-evidence \
+            2>&1 | tee causal-loom-v013-uiuc-frozen-evidence/stdout.log
+          status=${PIPESTATUS[0]}
+          set -e
+          printf '%s\n' "$status" > causal-loom-v013-uiuc-frozen-evidence/EXECUTION_EXIT_STATUS.txt
+          printf '%s\n' "e95db20206f7e89fe6d639ce030e887ec2ce7277" > causal-loom-v013-uiuc-frozen-evidence/UIUC_SOURCE_COMMIT.txt
+          cp .causal-loom-v013/UIUC_FROZEN_PROTOCOL.json causal-loom-v013-uiuc-frozen-evidence/
+          cp .causal-loom-v013/run_uiuc_frozen.py causal-loom-v013-uiuc-frozen-evidence/
+          {
+            python --version
+            pip freeze
+            uname -a
+            printf 'experiment_commit=%s\n' "$(git rev-parse HEAD)"
+          } > causal-loom-v013-uiuc-frozen-evidence/RUNTIME_ENVIRONMENT.txt
+          find causal-loom-v013-uiuc-frozen-evidence -maxdepth 1 -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            > causal-loom-v013-uiuc-frozen-evidence/FILES_SHA256SUMS.txt
+          exit "$status"
+
+      - name: Upload immutable frozen evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v013-uiuc-frozen-evidence
+          path: causal-loom-v013-uiuc-frozen-evidence
+          if-no-files-found: error
+          retention-days: 90
