@@ -1,0 +1,67 @@
+{
+  "protocol_id": "v0.15-raw-coordinate-external-tudelft-1",
+  "frozen_before_external_data_value_access": true,
+  "claim_boundary": "A primary pass supports transfer of a gauge-fixed raw-variable coordinate exponent learned from UIUC dynamic propeller data to an independent TU Delft physical wind-tunnel dataset. A strong pass additionally supports wind-tunnel-to-flight transfer. It does not establish unique absolute dimensional coordinates, discovery from truly raw UIUC sensors, exact Reynolds-number physics, arbitrary-domain scientific discovery, or general AI.",
+  "development": {
+    "evidence_file": ".causal-loom-v015/V015_DEVELOPMENT_EVIDENCE.json",
+    "valid_family_count": 137,
+    "five_fold_selected_b": [-1.12,-1.12,-1.14,-1.12,-1.12],
+    "frozen_b": -1.12,
+    "canonical_b": -1.0
+  },
+  "coordinate": {
+    "formula": "z_b = airspeed_mps * (RPM/5000)^b",
+    "gauge_fix": "airspeed exponent = +1",
+    "frozen_rpm_exponent": -1.12,
+    "canonical_rpm_exponent": -1.0
+  },
+  "external_source": {
+    "repository": "tudelft/propeller_airspeed_sensor",
+    "commit": "6db5cc19327f0d6c31a4e51783a442704007dbc3",
+    "paper_context": "TU Delft wind-tunnel and independent flight data used for airspeed estimation from propeller feedback"
+  },
+  "source_files": {
+    "wt": {"path":"data/input/wt.mat","blob_sha":"d706b64eed073c892d03e201c20f666714c4f5a3"},
+    "flight": {"path":"data/input/test.mat","blob_sha":"479d63305b5bf3b242aa310c54169e7c26876122"}
+  },
+  "physics": {"diameter_m":0.2032,"efficiency":0.874,"rho":1.225},
+  "filter": {"type":"Butterworth","order":2,"hz":5.0,"zero_phase":true},
+  "selection": {
+    "minimum_power_w":20.0,
+    "maximum_abs_rpm_dot":500.0,
+    "maximum_rpm":10000.0,
+    "minimum_advance_equivalent":0.20,
+    "note":"The last criterion is implemented as raw airspeed > 0.20*(RPM/60)*D and is only a fixed validity-domain filter mirroring the source authors; J is not passed to coordinate evaluation."
+  },
+  "wt_evaluation": {
+    "rpm_rank_bins":5,
+    "curve_groups":120,
+    "minimum_overlap_curve_points":30,
+    "cp_range_floor":0.01,
+    "polynomial_basis":"Chebyshev on training coordinate support",
+    "polynomial_degree":5,
+    "minimum_test_points":200,
+    "collapse_metric":"pairwise CP curve interpolation NRMSE across deterministic equal-count RPM-rank bins",
+    "bin_cv_metric":"leave-one-RPM-rank-bin-out CP prediction NRMSE with same degree-5 model for corrected and canonical coordinates"
+  },
+  "flight": {"motor_arm_m":0.24,"maximum_alpha_deg":25.0,"minimum_power_w":20.0,"maximum_rpm":10000.0},
+  "cross_modality": {
+    "polynomial_degree":5,
+    "minimum_scored_points":1000,
+    "cp_range_floor":0.01,
+    "support_rule":"score only flight points lying inside both WT-trained coordinate supports",
+    "fit_rule":"fit CP(z) on all valid WT points, no flight calibration"
+  },
+  "primary_gates": {
+    "minimum_wt_selected_points":500,
+    "minimum_pair_count":6,
+    "collapse_corrected_vs_canonical_ratio_lte":0.90,
+    "collapse_corrected_win_fraction_gte":0.60,
+    "wt_bin_cv_corrected_vs_canonical_ratio_lte":0.95
+  },
+  "strong_claim_gates": {
+    "wt_to_flight_corrected_vs_canonical_ratio_lte":0.95,
+    "posthoc_best_b_abs_distance_lte":0.10
+  },
+  "diagnostic_scan": {"min":-1.4,"max":-0.8,"step":0.02,"posthoc_only":true}
+}
