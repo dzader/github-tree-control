@@ -1,0 +1,56 @@
+name: Causal Loom v0.15 development raw-sensor data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v015-raw-coordinate-write-20260825
+    paths:
+      - '.github/workflows/causal-loom-v015-development-data.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_COMMIT: 6db5cc19327f0d6c31a4e51783a442704007dbc3
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v015-raw-coordinate-write-20260825
+      - name: Verify frozen split metadata
+        shell: bash
+        run: python -m json.tool .causal-loom-v015/V015_DATA_SPLIT.json >/dev/null
+      - name: Retrieve development binaries only and verify Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v015-development/data/input"
+          python - <<'PY' > "$RUNNER_TEMP/download.tsv"
+          import json
+          p=json.load(open('.causal-loom-v015/V015_DATA_SPLIT.json'))
+          for r in p['development_files']:
+              print(f"{r['blob_sha']}\t{r['path']}")
+          PY
+          while IFS=$'\t' read -r sha path; do
+            target="$RUNNER_TEMP/v015-development/$path"
+            mkdir -p "$(dirname "$target")"
+            curl --fail --silent --show-error -L \
+              "https://raw.githubusercontent.com/tudelft/propeller_airspeed_sensor/$SOURCE_COMMIT/$path" \
+              -o "$target"
+            actual=$(git hash-object "$target")
+            test "$actual" = "$sha"
+          done < "$RUNNER_TEMP/download.tsv"
+          cp .causal-loom-v015/V015_DATA_SPLIT.json "$RUNNER_TEMP/v015-development/"
+          find "$RUNNER_TEMP/v015-development" -type f -print0 | sort -z | xargs -0 sha256sum > "$RUNNER_TEMP/v015-development/FILES_SHA256SUMS.txt"
+          echo "DEVELOPMENT_BLOBS_VERIFIED $(wc -l < "$RUNNER_TEMP/download.tsv")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v015-development-raw-data
+          path: ${{ runner.temp }}/v015-development
+          if-no-files-found: error
+          retention-days: 90
