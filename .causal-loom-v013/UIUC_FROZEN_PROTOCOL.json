@@ -1,0 +1,403 @@
+{
+  "claim_if_passed": "A frozen nonlinear mechanism discovered from independent motor/ESC thrust-stand systems transfers with three-probe output binding to unseen propeller families in a separate public physical dataset.",
+  "claim_not_supported": "Universal aerodynamic law, causal sufficiency of passive flight data, state-of-the-art propeller prediction, or a general AI breakthrough.",
+  "decision_rule": "PASS only if every frozen gate passes. The first execution that reads any selected file is permanent; no selected file, metric, coefficient, probe rule, or threshold may be changed afterward.",
+  "frozen_date": "2026-08-25",
+  "frozen_gates": {
+    "aggregate_pmcd_to_quadratic_max_ratio": 1.05,
+    "all_selected_files_valid": true,
+    "catastrophe_threshold_nrmse": 0.5,
+    "median_improvement_over_linear_min": 0.25,
+    "median_pmcd_nrmse_max": 0.05,
+    "median_projective_residual_correlation_min": 0.95,
+    "win_fraction_over_linear_min": 0.75,
+    "zero_pmcd_catastrophes": true
+  },
+  "frozen_mechanism": {
+    "basis_powers": [
+      2,
+      3
+    ],
+    "coefficients": [
+      0.9996822704947699,
+      -0.025206309892999604
+    ],
+    "coordinate": "RPM",
+    "coordinate_definition": "z = RPM / 15611.743801652892",
+    "development_candidate_results": [
+      {
+        "candidate": "current",
+        "energy": 0.9779858684912358,
+        "h": [
+          0.9202166263034409,
+          -0.3914094539925081
+        ],
+        "loo_median_nrmse": 0.03849428972266243,
+        "pair_corr": 0.9874289134037189,
+        "scale": 25.92512956760564
+      },
+      {
+        "candidate": "electrical_power",
+        "energy": 0.9795926389297424,
+        "h": [
+          0.9205848934735887,
+          -0.3905425122931192
+        ],
+        "loo_median_nrmse": 0.0327051838383493,
+        "pair_corr": 0.9895245870307092,
+        "scale": 390.4688814239177
+      },
+      {
+        "candidate": "mechanical_power",
+        "energy": 0.9827787802081202,
+        "h": [
+          0.9114942533425409,
+          -0.41131280811995624
+        ],
+        "loo_median_nrmse": 0.019390304217541773,
+        "pair_corr": 0.9895384901265099,
+        "scale": 254.00539892320197
+      },
+      {
+        "candidate": "rpm",
+        "energy": 0.9800572945000653,
+        "h": [
+          0.9996822704947699,
+          -0.025206309892999604
+        ],
+        "loo_median_nrmse": 0.004877842068790737,
+        "pair_corr": 0.9996609792964348,
+        "scale": 15611.743801652892
+      },
+      {
+        "candidate": "voltage",
+        "energy": 0.9876034038767393,
+        "h": [
+          0.9094807745209721,
+          -0.4157459810710535
+        ],
+        "loo_median_nrmse": 0.02767872450842409,
+        "pair_corr": 0.9882470997613237,
+        "scale": 15.954939218019742
+      }
+    ],
+    "development_hyperparameters": {
+      "coordinate_scale_quantile": 0.9,
+      "curve_degree": 3,
+      "include_synthetic_origin": false,
+      "probe_quantiles": [
+        0.2,
+        0.5,
+        0.8
+      ]
+    },
+    "estimation": "Fit cubic polynomial per hardware world in a globally scaled coordinate, quotient constant and linear coefficients, L2-normalize the nonlinear coefficient vectors, sign-align, and use the first right singular vector.",
+    "function": "h(z) = 0.9996822704947699*z^2 - 0.025206309892999604*z^3",
+    "scale_rpm": 15611.743801652892
+  },
+  "holdout": {
+    "commit": "e95db20206f7e89fe6d639ce030e887ec2ce7277",
+    "inventory_contents_read": false,
+    "inventory_sha256": "8a56c899cf78fd5b1cdd6eee488fb989de48242a1b5c4336e108d685e8500e00",
+    "known_contamination_exclusion": {
+      "path": "Propeller_Data_V1/ance_8.5x6_static_2848cm.txt",
+      "reason": "Its contents were inspected while validating file format before the frozen selection. The entire ance brand was excluded."
+    },
+    "repository": "pfreitas97/Parser_UIUC_AeroData",
+    "selected_count": 31,
+    "selected_files": [
+      {
+        "blob_sha": "f7eca43b8ee52e44eb6da7fa516d079e0ae443ea",
+        "brand": "apc29ff",
+        "family": "apc29ff_9x4",
+        "path": "Propeller_Data_V1/apc29ff_9x4_static_2534rd.txt",
+        "rank_hash": "5beccaa653e8c83ff0b83b7ff3669e11cd0194b7707dea68736dd65d468c4bf4",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "f612c9293c965bf02cc5a32a55a12a09e6687143",
+        "brand": "apccf",
+        "family": "apccf_7.4x8.25",
+        "path": "Propeller_Data_V1/apccf_7.4x8.25_static_2883cm.txt",
+        "rank_hash": "643c55c212e6e0dbb6a199afe745c834fa77de0e17fecaaef1725757780cdb63",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "121b21687942d18b3898da8fd4c247585db13ff9",
+        "brand": "apce",
+        "family": "apce_9x6",
+        "path": "Propeller_Data_V1/apce_9x6_static_rd0987.txt",
+        "rank_hash": "039de3e55ff90ea0f8bd38a38e6ca6b571a24cf39eaac7bcb9a83adf1d76a0ae",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "844ae5f1de2a47205b2f714da61b41d6f5d6dd2f",
+        "brand": "apcff",
+        "family": "apcff_4.2x4",
+        "path": "Propeller_Data_V2/apcff_4.2x4_static_0615rd.txt",
+        "rank_hash": "6b0de332bba5e86edad019bddb49a91dc251f648ac53a484a571927c427abedd",
+        "size_bytes": 583
+      },
+      {
+        "blob_sha": "5d659fc0e36f46eefa67fc1c098317a9118183f6",
+        "brand": "apcsf",
+        "family": "apcsf_10x7",
+        "path": "Propeller_Data_V1/apcsf_10x7_static_kt0827.txt",
+        "rank_hash": "20ce7b7602a43e20d03b030a1de8a8c8b8a4f5182d8efd8cadcc6ddefdba26ec",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "7783d2e4b60828e9d45a3144a20a204ef4f76aef",
+        "brand": "apcsp",
+        "family": "apcsp_8x7",
+        "path": "Propeller_Data_V1/apcsp_8x7_static_2704rd.txt",
+        "rank_hash": "0246ba49a621fda6431e1cdec1c7665170f0964fc4e31c9231ece623bfde8d93",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "95de03fbeabd86734395d92d5badfc9bc697a8a4",
+        "brand": "cfnq",
+        "family": "cfnq_45t1",
+        "path": "Propeller_Data_V2/cfnq_45t1_static_1320rd.txt",
+        "rank_hash": "025bcf47f49ee790fe941d0e6bb2dcaf887df8af973279dcb299fb458a7e8e0b",
+        "size_bytes": 552
+      },
+      {
+        "blob_sha": "5cbf74021b7e195dd0e687a8d25bf48f57fb21e1",
+        "brand": "da4002",
+        "family": "da4002_5x2.65",
+        "path": "Propeller_Data_V2/da4002_5x2.65_static_1126rd.txt",
+        "rank_hash": "1d434f170fbd5807d0538d7cc970826fc946e15a72cb5747db55fc3197831dcb",
+        "size_bytes": 459
+      },
+      {
+        "blob_sha": "8d99f785138100a14059e5be37b90275daae5f8c",
+        "brand": "da4022",
+        "family": "da4022_9x6.75",
+        "path": "Propeller_Data_V2/da4022_9x6.75_static_0767rd.txt",
+        "rank_hash": "2e374ab288017044e246cdbb34c05098eaee6f3fb61d6ef2ba802eb0793148a0",
+        "size_bytes": 645
+      },
+      {
+        "blob_sha": "be5aa676b94c680edc02bc784ca3b39015765255",
+        "brand": "da4052",
+        "family": "da4052_9x6.75",
+        "path": "Propeller_Data_V2/da4052_9x6.75_static_1041rd.txt",
+        "rank_hash": "00bf57f4077994ef9ed49f494e3263765824dd7df060b329cbdc46cc27c971ab",
+        "size_bytes": 614
+      },
+      {
+        "blob_sha": "9e14c59075e1974edd84130b1be6fbb7f65d694d",
+        "brand": "ef",
+        "family": "ef_130x70",
+        "path": "Propeller_Data_V2/ef_130x70_static_0350rd.txt",
+        "rank_hash": "e53272fde646e1cf9336651b2118a7f8c0268ced3b81b0cdc121f9d59b6fc344",
+        "size_bytes": 552
+      },
+      {
+        "blob_sha": "39e2b4b7499594754b44a1adc6b791195b69b000",
+        "brand": "grcp",
+        "family": "grcp_11x4",
+        "path": "Propeller_Data_V1/grcp_11x4_static_rd0550.txt",
+        "rank_hash": "11d15d51bf4ee35ecb29db7788e8a8dc124e20a326bb7db7113728914e3fcd0b",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "2bd0adefc88a0f79a8ede61a0a12df3519fde937",
+        "brand": "grcsp",
+        "family": "grcsp_9x6",
+        "path": "Propeller_Data_V1/grcsp_9x6_static_pg0945.txt",
+        "rank_hash": "6eca470356f3d3929d5c7aaea9b611ba41a926c70b2cb247cdd76dafa780c617",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "015409fee695b844480b39d3016b5ab61be1afba",
+        "brand": "grsn",
+        "family": "grsn_11x8",
+        "path": "Propeller_Data_V1/grsn_11x8_static_rd0657.txt",
+        "rank_hash": "33a19f445d3555c945f7ad32805ba1e1773e11f9348740ae08b2bf5ab5139612",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "aa2906d3a3fa36bbab27cf192f3a1a1abd09f376",
+        "brand": "gwsdd",
+        "family": "gwsdd_9x5",
+        "path": "Propeller_Data_V1/gwsdd_9x5_static_jb1002.txt",
+        "rank_hash": "18f0957e7e135b78878fd449b8faee925bac95e4691fa2b7e71a81c528239751",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "633d672365a6509333ea23c21d8c223c15e141cf",
+        "brand": "gwssf",
+        "family": "gwssf_8x6",
+        "path": "Propeller_Data_V1/gwssf_8x6_static_2862rd.txt",
+        "rank_hash": "11644c829da968c3869ae1d2008835ea54a98756fa0bd17dff24a1548b608914",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "b6d5f94e28259be6e87a60c6ac05d326ed0fd37f",
+        "brand": "kavfk",
+        "family": "kavfk_9x6",
+        "path": "Propeller_Data_V1/kavfk_9x6_static_2592rd.txt",
+        "rank_hash": "217195bbc6527ac52ebd8e59b10b62206bc8d70b5f9f7a9b461a0f0ebf476027",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "2c04012faf2b2a5a625f90efbdd2b7b2197f53f4",
+        "brand": "kpf",
+        "family": "kpf_96x70",
+        "path": "Propeller_Data_V2/kpf_96x70_static_0382rd.txt",
+        "rank_hash": "6fbadc155a825a06c5e96386fe5ed225a2eecae5b272dd9b9dc588cf31b3f429",
+        "size_bytes": 583
+      },
+      {
+        "blob_sha": "ca71b8bf97bda784590c2cebdf2fe93cbef68973",
+        "brand": "kyosho",
+        "family": "kyosho_10x6",
+        "path": "Propeller_Data_V1/kyosho_10x6_static_jb0762.txt",
+        "rank_hash": "1887c5ced4ba6472654d51e501f2d50c0868128a0f8e1159e414470f861b9db8",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "957e21957638442a17e2b0ecea1a64f468139941",
+        "brand": "ma",
+        "family": "ma_11x4",
+        "path": "Propeller_Data_V1/ma_11x4_static_rd0593.txt",
+        "rank_hash": "06188185ac7d4d069ae3a548e05583a1494859f319e5bbdfa7bf3ffa0afcbf55",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "67e96107fb6ff15a9c5e704ae3e5bbe9e18d28e0",
+        "brand": "mae",
+        "family": "mae_9x6",
+        "path": "Propeller_Data_V1/mae_9x6_static_kj1017.txt",
+        "rank_hash": "042996cc150971bbd946a98ec3e60cf481133eeae1efcd3d6f07fdffcfaaaffc",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "bb964b51dd45d0f3e28bb81403319aea33473930",
+        "brand": "magf",
+        "family": "magf_9x5",
+        "path": "Propeller_Data_V1/magf_9x5_static_2587rd.txt",
+        "rank_hash": "0940371fdd405939233e79e13d11fc3388c05d3417836f387a73048bead4b4ca",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "f2efefa210d30d1b0417f9dd81ceed3bc93f2989",
+        "brand": "mas",
+        "family": "mas_11x6",
+        "path": "Propeller_Data_V1/mas_11x6_static_kt0696.txt",
+        "rank_hash": "113fdb1695564a5b35273ea4d92941f029a313eec03ab055e285236dccb1c835",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "9a5fd70d3407f5edc6d7e3fb022e81dbf8c11eb4",
+        "brand": "mi",
+        "family": "mi_4x2.7",
+        "path": "Propeller_Data_V2/mi_4x2.7_static_0564rd.txt",
+        "rank_hash": "640e6655b2986940e9a0afb65befc6970c6f39429b3ad7a540de61e4f8c12226",
+        "size_bytes": 676
+      },
+      {
+        "blob_sha": "993d84bdf1bb5c2c56cc439303da71a6d1e5fc04",
+        "brand": "mit",
+        "family": "mit_4.3x3.5",
+        "path": "Propeller_Data_V2/mit_4.3x3.5_static_0575rd.txt",
+        "rank_hash": "26024d176b94e8ce268d7d3ed93dbfcb52ed351b21d7c64f759f55fc4f0c2e4d",
+        "size_bytes": 521
+      },
+      {
+        "blob_sha": "b79c744f1aa9f4e21dab012b18f9a9f99fd655a3",
+        "brand": "nr640",
+        "family": "nr640_9_20deg",
+        "path": "Propeller_Data_V2/nr640_9_20deg_static_1047rd.txt",
+        "rank_hash": "0a6fc0d105852b1988649e7b6ad6ebc2e44fad70c01e3904468e94c6bb44b87e",
+        "size_bytes": 614
+      },
+      {
+        "blob_sha": "dc54055a69a47e771a8a3f327b84d3d8b083f369",
+        "brand": "pl",
+        "family": "pl_100x80",
+        "path": "Propeller_Data_V2/pl_100x80_static_0581rd.txt",
+        "rank_hash": "12efb6813163760be12e44a6d01facf7d5c7b2ec6310e9ca6e24cd730dea78d5",
+        "size_bytes": 707
+      },
+      {
+        "blob_sha": "ff0451c91f2a4075077c255f170e7d5b98e6703b",
+        "brand": "rusp",
+        "family": "rusp_11x4",
+        "path": "Propeller_Data_V1/rusp_11x4_static_2952os.txt",
+        "rank_hash": "fb2e261a57589e265f1de9aa3bbbf46ab6e5140459f9c9c413bf1fe7885e335e",
+        "size_bytes": 387
+      },
+      {
+        "blob_sha": "6e2ccf635f1a2643e81e849b556420590c67539b",
+        "brand": "union",
+        "family": "union_u80",
+        "path": "Propeller_Data_V2/union_u80_static_0481rd.txt",
+        "rank_hash": "c6b1f6d3176d9477bd0beb11049aecb636120a2a7353ea6fe5b953b23ff50861",
+        "size_bytes": 521
+      },
+      {
+        "blob_sha": "6ce37681af527c2bcfae8397b431e59d07e25b4f",
+        "brand": "vp",
+        "family": "vp_140x45",
+        "path": "Propeller_Data_V2/vp_140x45_static_0590rd.txt",
+        "rank_hash": "1786dde396cf9b5c2501597e6bdf0dc412bcac145098b4869caa526f3a1cd413",
+        "size_bytes": 645
+      },
+      {
+        "blob_sha": "5234d5615a3ef6d13edc10e1ff7f1cec608580d0",
+        "brand": "zin",
+        "family": "zin_11x7",
+        "path": "Propeller_Data_V1/zin_11x7_static_3008rd.txt",
+        "rank_hash": "1426bbd5aaee728d0fb55298509a3e381c53549724fea480acdd402e805db18f",
+        "size_bytes": 387
+      }
+    ],
+    "selection_rule": {
+      "content_used": false,
+      "exclude_brands": [
+        "ance"
+      ],
+      "group": "brand prefix before first underscore",
+      "salt": "causal-loom-v013-uiuc-brand-representatives-2026-08-25",
+      "within_group": "minimum SHA-256(salt|path|blob_sha)"
+    }
+  },
+  "measurement_model": {
+    "evaluation": "All non-probe rows.",
+    "input": "RPM from each UIUC static test",
+    "minimum_numeric_rows": 7,
+    "nrmse": "RMSE on non-probe rows divided by the full-file range of the thrust proxy.",
+    "output": "dimensionless thrust proxy y = C_T * (RPM / 15611.743801652892)^2; omitted rho*D^4 is a propeller-specific projective output scale.",
+    "probe_count": 3,
+    "probe_selection": "Sort by RPM and select rounded indices at 20%, 50%, and 80% of the input order. Outcomes do not affect probe selection."
+  },
+  "models": {
+    "binding": "Ordinary least squares on exactly the same three probes; no regularization or target-specific hyperparameter selection.",
+    "generic_cubic_primitive_control": "a + b*z + c*z^3",
+    "linear_control": "a + b*z",
+    "pmcd": "a + b*z + c*h(z); h and coordinate scale frozen",
+    "supplied_quadratic_control": "a + b*z + c*z^2"
+  },
+  "protocol_id": "causal-loom-v0.13-uiuc-unseen-propeller-confirmation-1",
+  "scientific_question": "Does the RPM-coordinate projective mechanism learned from six independent physical motor/ESC thrust-stand systems transfer, after only three input-selected output-binding probes, to static thrust laws of previously unseen propeller families?",
+  "source_training": {
+    "artifact_sha256": "b17ec4f654ebcc6b0a7458ff61c0f02b9a83d81137a201ede82b59be6b5f652b",
+    "dataset": "alspitz/esc_test physical thrust-stand logs",
+    "repository_commit": "4078609e3a84923b9cdbfdea8daf9814364fa9c8",
+    "shared_propeller": "DALPROP T7056 three-bladed 7-inch",
+    "steady_state_extraction": "Published repository median-filter and step-plateau procedure; origin excluded from projective mechanism estimation.",
+    "systems": [
+      "esc32v3-f40",
+      "kotleta-f60-duty",
+      "kotleta-f60-rpm",
+      "esc32v3-f60",
+      "esc32v2-f60",
+      "aikon-f80"
+    ]
+  },
+  "status": "FROZEN_BEFORE_ANY_SELECTED_UIUC_CONTENT_WAS_READ",
+  "structural_diagnostic": "On all rows, remove each file-specific affine projection from both y and h(z), then compute absolute Pearson correlation. This diagnostic does not affect fitted predictions."
+}
