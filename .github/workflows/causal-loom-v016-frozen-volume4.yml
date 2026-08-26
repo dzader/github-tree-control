@@ -17,10 +17,10 @@ env:
   OMP_NUM_THREADS: '1'
   OPENBLAS_NUM_THREADS: '1'
   MKL_NUM_THREADS: '1'
-  PROTOCOL_SHA256: d5acb6ce6a5f7860df19fecb2d9f4b096c061229dc8c76c1c986a256569cdf78
-  DEVELOPMENT_SHA256: c80f44230df74dbc747165724cde82bbc14e70352a699008138efd01ae35e1aa
+  PROTOCOL_BLOB_SHA: 0489ec04ac3973d13bdd5d833eebf334ca4bf584
+  DEVELOPMENT_BLOB_SHA: a63a5e0462f5d78cf49c370e973a033297a07d36
+  RUNNER_PAYLOAD_BLOB_SHA: e35262bc53e2ab17854bc255d9df1b475e55724b
   RUNNER_SHA256: 713569f85e3fbc070366047b6cc333b63ab14cbb9e0399c7c0383fa99e1e0d59
-  RUNNER_PAYLOAD_SHA256: 1d72c60872f3b016fb125b1227a8e288bfa4891533fef5ce049f00d105c1f249
   INVENTORY_SHA256: 72b3f2e2f6dc7509cc99f9cdf596d1a3a7566b95b60cfbabca9684fc85be6415
 
 jobs:
@@ -37,9 +37,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(sha256sum .causal-loom-v016/V016_FROZEN_PROTOCOL.json | cut -d' ' -f1)" = "$PROTOCOL_SHA256"
-          test "$(sha256sum .causal-loom-v016/V016_DEVELOPMENT_EVIDENCE.json | cut -d' ' -f1)" = "$DEVELOPMENT_SHA256"
-          test "$(sha256sum .causal-loom-v016/run_v016_frozen.py.gz.b64 | cut -d' ' -f1)" = "$RUNNER_PAYLOAD_SHA256"
+          test "$(git hash-object .causal-loom-v016/V016_FROZEN_PROTOCOL.json)" = "$PROTOCOL_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v016/V016_DEVELOPMENT_EVIDENCE.json)" = "$DEVELOPMENT_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v016/run_v016_frozen.py.gz.b64)" = "$RUNNER_PAYLOAD_BLOB_SHA"
           base64 --decode .causal-loom-v016/run_v016_frozen.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/run_v016_frozen.py"
           test "$(sha256sum "$RUNNER_TEMP/run_v016_frozen.py" | cut -d' ' -f1)" = "$RUNNER_SHA256"
           python -m py_compile "$RUNNER_TEMP/run_v016_frozen.py"
