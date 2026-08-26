@@ -1,0 +1,138 @@
+{
+  "binding": {
+    "calibration_run": "metadata-frozen lower-median RPM run",
+    "controls": [
+      "corrected_linear: a+b*xi",
+      "corrected_quadratic: a+b*xi+c*xi^2",
+      "pure_j_quadratic: a+b*J+c*J^2",
+      "pure_j_linear: a+b*J"
+    ],
+    "corrected_pmcd": "fit CT=a+b*xi+c*h_corr(xi) by least squares on exactly three probes",
+    "probe_count": 3,
+    "probe_quantiles_in_J": [
+      0.2,
+      0.5,
+      0.8
+    ],
+    "probe_rule": "nearest distinct row to each quantile target, without replacement",
+    "pure_j_pmcd": "fit CT=a+b*J+c*h_pure(J) by least squares on exactly three probes"
+  },
+  "claim_boundary": "A pass supports a Reynolds-like correction to advance ratio selected by projective/few-probe transfer and a reusable projective dynamic CT mechanism on unseen UIUC propeller geometries. It does not establish discovery of J from raw sensors, exact Reynolds-number physics, broad domain generality, state-of-the-art aerodynamics, or general AI scientific discovery.",
+  "coordinate": {
+    "formula": "xi = J * R^gamma; R=(RPM/5000)*(D_in/10)^2",
+    "gamma": -0.1,
+    "interpretation": "R is a Reynolds-like RPM*D^2 proxy, not a claim of exact blade Reynolds number.",
+    "name": "reynolds_corrected_advance_proxy",
+    "pure_j_control_gamma": 0.0
+  },
+  "development": {
+    "coordinate_selection_note": "gamma=-0.10 is a rounded consensus in the stable development plateau; no holdout contents were available.",
+    "cv": "deterministic 5-fold family-disjoint, fold=sha256(\"v014-cv5\\0\"+family) mod 5",
+    "development_data_artifact_digest": "sha256:441ddffcd6d47819af2a9f8e7a88c440811b465e42aa5b5c3e0a62693096e2b0",
+    "development_summary": {
+      "collapse_corrected_median": 0.05392741409478423,
+      "collapse_corrected_win_fraction": 0.762589928057554,
+      "collapse_paired_median_ratio": 0.6576116429314175,
+      "collapse_pure_j_median": 0.08063956030500455,
+      "cv_corrected_pmcd_median_nrmse": 0.042287758402445606,
+      "cv_corrected_vs_corrected_linear_paired_median_ratio": 0.9642561347295088,
+      "cv_corrected_vs_corrected_quadratic_paired_median_ratio": 0.9997404056019932,
+      "cv_corrected_vs_pure_j_pmcd_paired_median_ratio": 0.8107215729764647,
+      "cv_corrected_vs_pure_j_pmcd_win_fraction": 0.6956521739130435,
+      "cv_pure_j_pmcd_median_nrmse": 0.057397164965479794,
+      "cv_valid_family_count": 138
+    },
+    "family_count": 139,
+    "selection": "all eligible non-holdout families from V014_SPLIT_PROTOCOL"
+  },
+  "evaluation": {
+    "collapse_metric": "For each run pair sorted by RPM, evaluate the lower-RPM CT curve against linear interpolation of the higher-RPM curve on overlapping candidate-coordinate support; RMSE divided by pooled CT range floored at 0.01; family score is the median pair score.",
+    "common_support": "for every model, score confirmatory rows whose J lies within the calibration run observed J range",
+    "confirmatory_only_for_prediction": true,
+    "family_nrmse": "concatenate all scored confirmatory points in a family; RMSE divided by max(CT)-min(CT); invalid if range <0.01",
+    "projective_alignment": "post-hoc diagnostic only: fit full-run cubic in corrected xi, normalize nonlinear coefficient vector [x^2,x^3], take absolute dot with frozen h; family score median across runs.",
+    "target": "CT"
+  },
+  "frozen_before_holdout_content_access": true,
+  "holdout": {
+    "canonical_manifest_sha256": "6d974638ddd81c8a3e950f0eed754a66a2963d2dac7be7a1fdbbef64ba8702c4",
+    "family_count": 32,
+    "family_names": [
+      "apcsp_9x6",
+      "gwsdd_3x3",
+      "ma_11x6",
+      "gwssf_8x4.3",
+      "apcsp_9x9",
+      "apcsp_8x4",
+      "apcsp_10x10",
+      "grsn_9x7",
+      "mas_10x5",
+      "kyosho_10x7",
+      "mae_10x7",
+      "apcsp_10x5",
+      "kyosho_9x6",
+      "apcsp_7x6",
+      "kyosho_11x7",
+      "magf_9x7",
+      "gwssf_9x4.7",
+      "apc29ff_9x5",
+      "grsn_9x6",
+      "magf_11x5",
+      "apcsf_11x4.7",
+      "apcsf_9x3.8",
+      "apcsp_8x6",
+      "apcsf_11x3.8",
+      "apce_9x9",
+      "gwssf_11x4.7",
+      "grcp_10x6",
+      "gwsdd_2.5x0.8_spec3",
+      "apcsf_9x7.5",
+      "da4052_5x1.58",
+      "apce_11x5.5",
+      "ma_11x7"
+    ],
+    "manifest_canonicalization": "JSON object {families:[...]} sorted keys, compact separators; each family has family, diameter_in, pitch_in, calibration_run{path,blob_sha,rpm}, confirmatory_runs same; trailing newline.",
+    "metadata_selection": "reconstruct exactly from immutable source tree using V014_SPLIT_PROTOCOL rules: matching standard family, deduplicate equal filename RPM by minimum rank_hash=sha256(path+NUL+blob_sha), sort by RPM, calibration=lower median, others confirmatory."
+  },
+  "mechanism": {
+    "corrected_family_median_abs_alignment": 0.9840602736292874,
+    "corrected_family_projective_first_component_energy": 0.9322296735666873,
+    "corrected_h_coefficients_for_x2_x3": [
+      0.9373292565084214,
+      -0.3484449237589354
+    ],
+    "degree": 3,
+    "learning": "per run cubic CT(x); remove affine coefficients; projectively normalize [x^2,x^3]; sign-align within family; average per family and unit-normalize; leading SVD direction across all 139 development families.",
+    "pure_j_h_coefficients_for_x2_x3": [
+      0.9348064400298151,
+      -0.3551575983683635
+    ]
+  },
+  "primary_gates": {
+    "collapse_corrected_vs_pure_j_median_ratio_lte": 0.8,
+    "collapse_corrected_win_fraction_gte": 0.65,
+    "corrected_pmcd_vs_corrected_linear_median_ratio_lte": 1.0,
+    "corrected_pmcd_vs_corrected_quadratic_median_ratio_lte": 1.1,
+    "median_corrected_pmcd_nrmse_lte": 0.07,
+    "median_projective_alignment_gte": 0.9,
+    "minimum_valid_families": 28,
+    "transfer_corrected_vs_pure_j_pmcd_median_ratio_lte": 0.95,
+    "transfer_corrected_vs_pure_j_pmcd_win_fraction_gte": 0.6,
+    "zero_catastrophic_families_nrmse_gt": 0.5
+  },
+  "protocol_id": "v0.14-pmcd-reynolds-corrected-dynamic-uiuc-1",
+  "source": {
+    "commit": "e95db20206f7e89fe6d639ce030e887ec2ce7277",
+    "inventory_sha256": "54ae967744f162e6745b413a089eac79ab8c3f8dd19c4cbccc718ef00f2ba599",
+    "repository": "pfreitas97/Parser_UIUC_AeroData"
+  },
+  "strong_claim_diagnostics": {
+    "corrected_pmcd_beats_corrected_quadratic_median_ratio_lte": 1.0,
+    "corrected_pmcd_win_fraction_vs_corrected_quadratic_gte": 0.5
+  },
+  "validity": {
+    "minimum_numeric_rows_per_run": 5,
+    "minimum_scored_confirmatory_points_per_run": 5,
+    "minimum_valid_holdout_families": 28
+  }
+}
