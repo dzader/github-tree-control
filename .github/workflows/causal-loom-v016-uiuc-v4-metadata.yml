@@ -1,0 +1,76 @@
+name: Causal Loom v0.16 UIUC Volume 4 metadata-only inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v016-adaptive-gauge-20260826
+    paths:
+      - '.github/workflows/causal-loom-v016-uiuc-v4-metadata.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v016-adaptive-gauge-20260826
+      - name: Parse index metadata without reading dynamic measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          INDEX='https://m-selig.ae.illinois.edu/props/volume-4/propDB-volume-4.html'
+          curl --fail --silent --show-error -L "$INDEX" -o "$RUNNER_TEMP/index.html"
+          python - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          html=(Path(os.environ['RUNNER_TEMP'])/'index.html').read_text(errors='replace')
+          # Only inspect href metadata. Dynamic data files are not fetched in this job.
+          hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
+          pat=re.compile(r'^(?:\.\./)?(?:data/)?(?P<name>apce_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)_(?P<prov>[^_/]+)_(?P<rpm>\d{3,5})\.txt)$',re.I)
+          by={}
+          base='https://m-selig.ae.illinois.edu/props/volume-4/'
+          for href in hrefs:
+              clean=href.lstrip('./')
+              m=pat.match(clean)
+              if not m: continue
+              family=f"apce_{m.group('D')}x{m.group('P')}"
+              if family.lower()=='apce_12x6':
+                  continue  # one dynamic file was inspected during URL-format validation
+              row={'href':href,'url':urljoin(base,href),'filename':m.group('name'),'family':family,
+                   'diameter_in':float(m.group('D')),'pitch_in':float(m.group('P')),
+                   'provenance_token':m.group('prov'),'rpm':int(m.group('rpm'))}
+              by.setdefault(family,[]).append(row)
+          families=[]
+          for fam,rows in sorted(by.items()):
+              # Deduplicate exact hrefs only; values remain unread.
+              seen=set(); uniq=[]
+              for r in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if r['url'] in seen: continue
+                  seen.add(r['url']); uniq.append(r)
+              families.append({'family':fam,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],
+                               'run_count':len(uniq),'runs':uniq})
+          if len(families)!=16:
+              raise RuntimeError(f'expected 16 uninspected Volume-4 families after excluding 12x6, got {len(families)}')
+          if any(f['run_count']<5 for f in families):
+              raise RuntimeError('unexpected family with fewer than five dynamic runs')
+          payload={'source_index':base+'propDB-volume-4.html','index_sha256':hashlib.sha256(html.encode()).hexdigest(),
+                   'contents_read':False,'excluded_families':['apce_12x6'],'family_count':len(families),'families':families}
+          text=json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n'
+          out=Path('causal-loom-v016-v4-metadata');out.mkdir(exist_ok=True)
+          (out/'inventory.json').write_text(text)
+          (out/'INVENTORY_SHA256.txt').write_text(hashlib.sha256(text.encode()).hexdigest()+'  inventory.json\n')
+          print('METADATA_ONLY',len(families),'families',sum(f['run_count'] for f in families),'dynamic hrefs')
+          for f in families: print(f['family'],f['run_count'],[r['rpm'] for r in f['runs']])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v016-uiuc-v4-metadata
+          path: causal-loom-v016-v4-metadata
+          if-no-files-found: error
+          retention-days: 90
