@@ -40,7 +40,7 @@ jobs:
           test "$(git hash-object .causal-loom-v016/V016_FROZEN_PROTOCOL.json)" = "$PROTOCOL_BLOB_SHA"
           test "$(git hash-object .causal-loom-v016/V016_DEVELOPMENT_EVIDENCE.json)" = "$DEVELOPMENT_BLOB_SHA"
           test "$(git hash-object .causal-loom-v016/run_v016_frozen.py.gz.b64)" = "$RUNNER_PAYLOAD_BLOB_SHA"
-          base64 --decode .causal-loom-v016/run_v016_frozen.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/run_v016_frozen.py"
+          base64 --decode --ignore-garbage .causal-loom-v016/run_v016_frozen.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/run_v016_frozen.py"
           test "$(sha256sum "$RUNNER_TEMP/run_v016_frozen.py" | cut -d' ' -f1)" = "$RUNNER_SHA256"
           python -m py_compile "$RUNNER_TEMP/run_v016_frozen.py"
 
