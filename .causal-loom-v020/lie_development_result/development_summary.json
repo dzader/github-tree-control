@@ -1,0 +1,121 @@
+{
+  "atlas_diagnostics": {
+    "median_c": -0.04958330134493955,
+    "median_weight": 0.0,
+    "nonzero_weight_fraction": 0.375
+  },
+  "development_gate": {
+    "atlas_ratio_vs_best_learned_control": 0.8598495832446166,
+    "best_learned_control_geometric_mean_joint": 0.0521606264192226,
+    "pass": false,
+    "requirements": {
+      "generator_alignment_each_gte": 0.8,
+      "geometric_mean_ratio_vs_fixed_lte": 0.9,
+      "ratio_vs_best_learned_control_lte": 0.9,
+      "win_fraction_vs_fixed_gte": 0.65,
+      "worst_ratio_vs_fixed_lte": 1.75
+    }
+  },
+  "family_count": 40,
+  "generator_alignment": {
+    "cp": 0.8445065794505233,
+    "ct": 0.8624261272591701,
+    "per_fold": [
+      {
+        "cp": 0.8732361823915162,
+        "ct": 0.86021181132065
+      },
+      {
+        "cp": 0.7431595886125812,
+        "ct": 0.8431712509299659
+      },
+      {
+        "cp": 0.2653182441550465,
+        "ct": 0.8910382926870486
+      },
+      {
+        "cp": 0.9022073369819115,
+        "ct": 0.8624261272591701
+      },
+      {
+        "cp": 0.8445065794505233,
+        "ct": 0.870449128500153
+      }
+    ]
+  },
+  "methods": {
+    "direct_poly": {
+      "geometric_mean_joint": 0.0521606264192226,
+      "geometric_mean_ratio_vs_fixed": 1.2779180073520424,
+      "median_joint": 0.05055498134807242,
+      "median_ratio_vs_fixed": 1.339558138463251,
+      "p90_ratio_vs_fixed": 1.9151699312328587,
+      "win_fraction_vs_fixed": 0.25,
+      "worst_ratio_vs_fixed": 3.2216816346814436
+    },
+    "extra_trees": {
+      "geometric_mean_joint": 0.07061668148842798,
+      "geometric_mean_ratio_vs_fixed": 1.7300852211439124,
+      "median_joint": 0.06858015221929536,
+      "median_ratio_vs_fixed": 1.6796176191545427,
+      "p90_ratio_vs_fixed": 2.989168062874779,
+      "win_fraction_vs_fixed": 0.125,
+      "worst_ratio_vs_fixed": 3.9196810665829345
+    },
+    "fixed": {
+      "geometric_mean_joint": 0.040816880362539054,
+      "geometric_mean_ratio_vs_fixed": 1.0,
+      "median_joint": 0.041683725867074944,
+      "median_ratio_vs_fixed": 1.0,
+      "p90_ratio_vs_fixed": 1.0,
+      "win_fraction_vs_fixed": 0.0,
+      "worst_ratio_vs_fixed": 1.0
+    },
+    "hist_gb": {
+      "geometric_mean_joint": 0.06420245902187828,
+      "geometric_mean_ratio_vs_fixed": 1.572938903013325,
+      "median_joint": 0.05661650454125024,
+      "median_ratio_vs_fixed": 1.528991517443263,
+      "p90_ratio_vs_fixed": 2.9168428195458214,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 5.4474885429210245
+    },
+    "mlp": {
+      "geometric_mean_joint": 0.09361576970326194,
+      "geometric_mean_ratio_vs_fixed": 2.2935552367490755,
+      "median_joint": 0.0968814646838206,
+      "median_ratio_vs_fixed": 2.3572067779718173,
+      "p90_ratio_vs_fixed": 3.4131519033915954,
+      "win_fraction_vs_fixed": 0.025,
+      "worst_ratio_vs_fixed": 6.573671301551438
+    },
+    "plain_j": {
+      "geometric_mean_joint": 0.04785393183186777,
+      "geometric_mean_ratio_vs_fixed": 1.1724054216496955,
+      "median_joint": 0.04494317354362824,
+      "median_ratio_vs_fixed": 1.1558861860457077,
+      "p90_ratio_vs_fixed": 1.6566353368832734,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 2.77225159217756
+    },
+    "raw_atlas": {
+      "geometric_mean_joint": 0.12044677806416026,
+      "geometric_mean_ratio_vs_fixed": 2.9509060220757095,
+      "median_joint": 0.12361622437791295,
+      "median_ratio_vs_fixed": 2.659383012437347,
+      "p90_ratio_vs_fixed": 7.208921487978588,
+      "win_fraction_vs_fixed": 0.0,
+      "worst_ratio_vs_fixed": 9.716826887160208
+    },
+    "safe_atlas": {
+      "geometric_mean_joint": 0.044850292888346695,
+      "geometric_mean_ratio_vs_fixed": 1.0988172660424445,
+      "median_joint": 0.04303466518530931,
+      "median_ratio_vs_fixed": 1.0,
+      "p90_ratio_vs_fixed": 1.407912692048908,
+      "win_fraction_vs_fixed": 0.15,
+      "worst_ratio_vs_fixed": 2.936522277057807
+    }
+  },
+  "protocol": "five family-disjoint folds; exactly five output-blind probes; matched cubic and learned controls"
+}
