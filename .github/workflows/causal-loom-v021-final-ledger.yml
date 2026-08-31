@@ -1,0 +1,97 @@
+name: Causal Loom v0.21 final cross-domain evidence ledger
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/development_result/**'
+      - '.causal-loom-v021/frozen_result/**'
+      - '.causal-loom-v021/freeze_refused/**'
+      - '.causal-loom-v021/premeasurement_protocol/**'
+      - '.github/workflows/causal-loom-v021-final-ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: causal-loom-v021-final-ledger
+  cancel-in-progress: true
+
+jobs:
+  ledger:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Build tiered v0.21 status
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.causal-loom-v021')
+          def load(path):
+              p=Path(path)
+              return json.load(open(p)) if p.exists() else None
+          split=load(root/'premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json')
+          development=load(root/'development_result/development_summary.json')
+          frozen=load(root/'frozen_result/results.json')
+          refused=load(root/'freeze_refused/status.json')
+          if frozen is not None:
+              scientific_status='cross_domain_frozen_pass' if frozen.get('primary_pass') else 'cross_domain_frozen_failure'
+          elif development is not None and development.get('development_gate',{}).get('pass'):
+              scientific_status='cross_domain_development_pass_confirmation_pending'
+          elif development is not None:
+              scientific_status='cross_domain_development_failure_confirmation_remains_sealed'
+          elif split is not None and split.get('status')=='blocked':
+              scientific_status='cross_domain_source_blocked_before_measurement_access'
+          else:
+              scientific_status='cross_domain_pipeline_running'
+          if scientific_status=='cross_domain_frozen_pass':
+              claim_status='plausibly_novel_cross_domain_physical_mechanism_atlas_with_frozen_confirmation'
+          elif scientific_status=='cross_domain_development_pass_confirmation_pending':
+              claim_status='plausibly_novel_development_result_only'
+          elif scientific_status=='cross_domain_frozen_failure':
+              claim_status='cross_domain_hypothesis_falsified_on_reserved_confirmation'
+          else:
+              claim_status='not_yet_supported'
+          ledger={'scientific_status':scientific_status,'claim_status':claim_status,'split_protocol':None if split is None else {'domain':split.get('domain'),'status':split.get('status'),'split_counts':split.get('split_counts'),'source_record_id':split.get('source_record_id'),'source_title':split.get('source_title')},'development':development,'frozen_confirmation':frozen,'freeze_refusal':refused}
+          root.mkdir(exist_ok=True)
+          (root/'FINAL_STATUS.json').write_text(json.dumps(ledger,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom v0.21 final scientific status','',f"Scientific status: **{scientific_status}**",f"Claim status: **{claim_status}**",'']
+          if split:
+              lines += [f"Domain: **{split.get('domain')}**",f"Source: **{split.get('source_title')}**",f"Frozen family split: `{split.get('split_counts')}`",'']
+          if development:
+              method=development.get('methods',{}).get('safe_atlas',{})
+              lines += ['## Sealed development/validation','',f"Verdict: **{'PASS' if development.get('development_gate',{}).get('pass') else 'FAIL'}**",f"Validation curves: **{development.get('valid_validation_curve_count')}**",f"Geometric-mean ratio versus matched cubic: **{method.get('geometric_mean_ratio_vs_fixed')}**",f"Win fraction versus matched cubic: **{method.get('win_fraction_vs_fixed')}**",'']
+          else:lines += ['## Sealed development/validation','','Result pending.','']
+          if frozen:
+              method=frozen.get('summary',{}).get('methods',{}).get('safe_atlas',{})
+              lines += ['## Frozen confirmation','',f"Verdict: **{'PASS' if frozen.get('primary_pass') else 'FAIL'}**",f"Valid families: **{frozen.get('summary',{}).get('valid_family_count')}**",f"Valid curves: **{frozen.get('summary',{}).get('valid_curve_count')}**",f"Geometric-mean ratio versus cubic: **{method.get('geometric_mean_ratio_vs_cubic')}**",f"Win fraction versus cubic: **{method.get('win_fraction_vs_cubic')}**",'','```json',json.dumps(frozen.get('gates'),indent=2,sort_keys=True),'```','']
+          else:lines += ['## Frozen confirmation','','No confirmation-family result has been captured.','']
+          lines += ['## Claim boundary','']
+          if scientific_status=='cross_domain_frozen_pass':lines.append('The same projective-atlas principle survived a reserved physical domain outside propulsion under a frozen five-probe protocol. This supports a plausibly novel integrated contribution, not a definitive first-in-literature or general-AI breakthrough claim.')
+          elif scientific_status=='cross_domain_development_failure_confirmation_remains_sealed':lines.append('The matched validation gate failed, so confirmation families remain sealed. The current cross-domain formulation is not supported.')
+          elif scientific_status=='cross_domain_frozen_failure':lines.append('The reserved confirmation falsified the cross-domain formulation. The failure is permanent and the holdout is consumed.')
+          else:lines.append('No cross-domain breakthrough claim is permitted yet.')
+          (root/'FINAL_STATUS.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({'scientific_status':scientific_status,'claim_status':claim_status},sort_keys=True))
+          PY
+      - name: Commit final status with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/FINAL_STATUS.json .causal-loom-v021/FINAL_STATUS.md
+          if git diff --cached --quiet;then exit 0;fi
+          git commit -m 'Update final cross-domain Causal Loom status'
+          for attempt in 1 2 3 4 5;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
