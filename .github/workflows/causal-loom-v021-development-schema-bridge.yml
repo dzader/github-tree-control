@@ -1,0 +1,148 @@
+name: Causal Loom v0.21 cross-domain development schema bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json'
+      - '.github/workflows/causal-loom-v021-development-schema-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONHASHSEED: '0'
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deterministic schema dependencies
+        run: pip install numpy==2.1.3 pandas==2.2.3 openpyxl==3.1.5 scipy==1.14.1 h5py==3.12.1 pyarrow==17.0.0
+      - name: Refuse blocked protocols before any data access
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(python -c 'import json;print(json.load(open(".causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json"))["status"])')
+          test "$status" = ready_for_development_access
+      - name: Retrieve only development and validation family files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/cross-domain";mkdir -p "$RUNNER_TEMP/cross-domain/downloads" "$RUNNER_TEMP/cross-domain/extracted"
+          export ROOT="$RUNNER_TEMP/cross-domain"
+          python - <<'PY'
+          import json,os,urllib.request,zipfile
+          from pathlib import Path
+          protocol=json.load(open('.causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json'))
+          metadata=json.load(open('.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json'))
+          root=Path(os.environ['ROOT']);downloads=root/'downloads';extracted=root/'extracted'
+          allowed=[]
+          forbidden=[]
+          for family in protocol['families']:
+              target=allowed if family['split'] in ('development','validation') else forbidden
+              for row in family['files']:
+                  target.append({'family_key':family['family_key'],'split':family['split'],**row})
+          # Freeze a manifest proving which confirmation paths were not extracted.
+          (root/'confirmation_forbidden.json').write_text(json.dumps(forbidden,indent=2,sort_keys=True)+'\n')
+          top={f['key']:f for f in metadata['files']}
+          archives={a['key']:a for a in metadata.get('archives',[])}
+          downloaded={}
+          copied=[]
+          for row in allowed:
+              container=row.get('container')
+              if container:
+                  if container not in top:raise RuntimeError(f'archive container missing: {container}')
+                  if container not in downloaded:
+                      target=downloads/Path(container).name
+                      urllib.request.urlretrieve(top[container]['url'],target);downloaded[container]=target
+                  with zipfile.ZipFile(downloaded[container]) as z:
+                      if row['path'] not in z.namelist():raise RuntimeError(f'member missing: {row["path"]}')
+                      out=extracted/row['family_key'].replace(':','__')/Path(row['path']).name
+                      out.parent.mkdir(parents=True,exist_ok=True);out.write_bytes(z.read(row['path']))
+              else:
+                  key=row['path']
+                  if key not in top:raise RuntimeError(f'top-level file missing: {key}')
+                  out=extracted/row['family_key'].replace(':','__')/Path(key).name
+                  out.parent.mkdir(parents=True,exist_ok=True);urllib.request.urlretrieve(top[key]['url'],out)
+              copied.append({'family_key':row['family_key'],'split':row['split'],'source_path':row['path'],'local_relative_path':str(out.relative_to(extracted)),'bytes':out.stat().st_size})
+          (root/'development_extraction_manifest.json').write_text(json.dumps(copied,indent=2,sort_keys=True)+'\n')
+          print('DEVELOPMENT_FILES_EXTRACTED',len(copied),'CONFIRMATION_FILES_UNOPENED',len(forbidden))
+          PY
+      - name: Inspect development schemas and candidate curve columns
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ROOT="$RUNNER_TEMP/cross-domain"
+          python - <<'PY'
+          import json,math,os,re
+          from pathlib import Path
+          import h5py,numpy as np,pandas as pd
+          from scipy.io import loadmat
+          protocol=json.load(open('.causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json'))
+          root=Path(os.environ['ROOT']);extracted=root/'extracted';manifest=json.load(open(root/'development_extraction_manifest.json'))
+          expectations=protocol.get('parser_expectations',{})
+          x_syn=[re.sub(r'[^a-z0-9]+','',x.lower()) for x in expectations.get('independent_variable_synonyms',[])]
+          y_syn=[re.sub(r'[^a-z0-9]+','',x.lower()) for x in expectations.get('output_synonyms',[])]
+          c_syn=[re.sub(r'[^a-z0-9]+','',x.lower()) for x in expectations.get('context_synonyms',[])]
+          def role(name):
+              h=re.sub(r'[^a-z0-9]+','',str(name).lower())
+              if any(s and (h==s or s in h) for s in x_syn):return 'independent'
+              if any(s and (h==s or s in h) for s in y_syn):return 'output'
+              if any(s and (h==s or s in h) for s in c_syn):return 'context'
+              return None
+          def frame_summary(df,label):
+              columns=[]
+              for col in df.columns:
+                  series=pd.to_numeric(df[col],errors='coerce');finite=int(np.isfinite(series.to_numpy(float,na_value=np.nan)).sum())
+                  columns.append({'name':str(col),'role_hint':role(col),'numeric_count':finite,'non_null_count':int(df[col].notna().sum()),'unique_count':int(df[col].nunique(dropna=True)),'numeric_min':float(series.min()) if finite else None,'numeric_max':float(series.max()) if finite else None})
+              return {'table':label,'rows':len(df),'columns':columns}
+          schemas=[]
+          for item in manifest:
+              path=extracted/item['local_relative_path'];suffix=path.suffix.lower();tables=[];error=None
+              try:
+                  if suffix in ('.xlsx','.xlsm','.xls'):
+                      for sheet,df in pd.read_excel(path,sheet_name=None).items():tables.append(frame_summary(df,f'{path.name}::{sheet}'))
+                  elif suffix in ('.csv','.tsv','.txt','.dat'):
+                      for kwargs in ({'sep':None,'engine':'python'},{'delim_whitespace':True}):
+                          try:
+                              df=pd.read_csv(path,**kwargs);tables.append(frame_summary(df,path.name));break
+                          except Exception:continue
+                  elif suffix=='.parquet':tables.append(frame_summary(pd.read_parquet(path),path.name))
+                  elif suffix=='.json':
+                      data=json.load(open(path));df=pd.json_normalize(data if isinstance(data,list) else [data]);tables.append(frame_summary(df,path.name))
+                  elif suffix=='.mat':
+                      data=loadmat(path,squeeze_me=True,struct_as_record=False);tables.append({'table':path.name,'mat_keys':sorted(k for k in data if not k.startswith('__')),'rows':None,'columns':[]})
+                  elif suffix in ('.h5','.hdf5'):
+                      with h5py.File(path) as h:
+                          datasets=[];h.visititems(lambda n,o:datasets.append({'name':n,'shape':list(o.shape),'dtype':str(o.dtype)}) if isinstance(o,h5py.Dataset) else None);tables.append({'table':path.name,'hdf5_datasets':datasets,'rows':None,'columns':[]})
+                  else:error='unsupported_extension'
+              except Exception as exc:error=f'{type(exc).__name__}:{exc}'
+              schemas.append({**item,'tables':tables,'error':error})
+          output={'protocol_id':protocol['protocol_id'],'domain':protocol['domain'],'confirmation_values_accessed':False,'development_file_count':len(manifest),'schemas':schemas}
+          out=Path('.causal-loom-v021/development_schema');out.mkdir(parents=True,exist_ok=True)
+          (out/'DEVELOPMENT_SCHEMA.json').write_text(json.dumps(output,indent=2,sort_keys=True)+'\n')
+          (out/'CONFIRMATION_ACCESS_STATUS.txt').write_text('False — confirmation-family files listed in the frozen protocol were not extracted.\n')
+          print('SCHEMA_TABLES',sum(len(x['tables']) for x in schemas),'FILES',len(schemas),'ERRORS',sum(x['error'] is not None for x in schemas))
+          PY
+      - name: Commit development-only schema bridge
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/development_schema
+          git commit -m 'Bridge cross-domain development schemas while confirmation remains sealed'
+          for attempt in 1 2 3 4;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
