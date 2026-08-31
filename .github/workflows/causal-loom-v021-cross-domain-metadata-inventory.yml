@@ -1,0 +1,83 @@
+name: Causal Loom v0.21 cross-domain physical metadata inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.github/workflows/causal-loom-v021-cross-domain-metadata-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Query metadata APIs without downloading measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .causal-loom-v021/cross_domain_inventory
+          python - <<'PY'
+          import json,re,urllib.parse,urllib.request
+          from pathlib import Path
+          queries={
+            'photovoltaic':['experimental photovoltaic IV curve dataset','solar module current voltage curves temperature irradiance dataset','PV I-V measurement dataset'],
+            'battery':['experimental battery discharge voltage curve dataset','lithium ion discharge curves temperature dataset','battery cycling voltage capacity raw data'],
+            'fuel_cell':['fuel cell polarization curve experimental dataset','PEM fuel cell voltage current measurements dataset'],
+            'materials':['experimental stress strain curves dataset material specimens','tensile test stress strain raw curves dataset'],
+            'aerodynamics':['airfoil wind tunnel polar experimental dataset','lift drag polar Reynolds experimental data'],
+          }
+          records={}
+          for domain,domain_queries in queries.items():
+              for query in domain_queries:
+                  url='https://zenodo.org/api/records?'+urllib.parse.urlencode({'q':query,'size':100,'sort':'bestmatch'})
+                  with urllib.request.urlopen(url,timeout=90) as response:payload=json.load(response)
+                  for hit in payload.get('hits',{}).get('hits',[]):
+                      record_id=str(hit.get('id'))
+                      if record_id in {'20111572'}:continue
+                      md=hit.get('metadata',{});title=str(md.get('title',''));description=re.sub('<[^>]+>',' ',str(md.get('description','')))
+                      text=(title+' '+description+' '+' '.join(md.get('keywords') or [])).lower()
+                      domain_tokens={
+                        'photovoltaic':('photovoltaic','solar','i-v','iv curve'),
+                        'battery':('battery','lithium','discharge','cycling'),
+                        'fuel_cell':('fuel cell','pemfc','polarization'),
+                        'materials':('stress strain','tensile','mechanical test'),
+                        'aerodynamics':('airfoil','wind tunnel','lift','drag'),
+                      }[domain]
+                      if not any(token in text for token in domain_tokens):continue
+                      files=[]
+                      for file in hit.get('files') or []:
+                          files.append({'key':file.get('key'),'size':file.get('size'),'checksum':file.get('checksum'),'self':(file.get('links') or {}).get('self')})
+                      row=records.setdefault(record_id,{'record_id':record_id,'title':title,'doi':md.get('doi'),'publication_date':md.get('publication_date'),'updated':hit.get('updated'),'description_text':description[:7000],'keywords':md.get('keywords'),'resource_type':md.get('resource_type'),'license':md.get('license'),'creators':md.get('creators'),'files':files,'record_url':(hit.get('links') or {}).get('html'),'domains':[],'matched_queries':[]})
+                      row['domains']=sorted(set(row['domains']+[domain]));row['matched_queries']=sorted(set(row['matched_queries']+[query]))
+          for row in records.values():
+              text=(row['title']+' '+row['description_text']).lower();extensions=[Path(str(f.get('key',''))).suffix.lower() for f in row['files']]
+              score=0
+              score+=6*('experimental' in text or 'experiment' in text or 'measurement' in text)
+              score+=5*('raw data' in text or 'time series' in text or 'curve' in text)
+              score+=4*any(ext in {'.csv','.xlsx','.xls','.mat','.h5','.hdf5','.txt','.zip'} for ext in extensions)
+              score+=3*(len(row['files'])>=2)+2*(len(row['files'])>=5)
+              score+=3*('temperature' in text)+3*('irradiance' in text or 'reynolds' in text or 'cycle' in text or 'specimen' in text)
+              score-=5*('simulation only' in text or 'synthetic' in text)
+              row['metadata_suitability_score']=score
+          ranked=sorted(records.values(),key=lambda x:(-x['metadata_suitability_score'],x['title']))
+          payload={'measurement_values_accessed':False,'queries':queries,'candidate_count':len(ranked),'candidates':ranked}
+          Path('.causal-loom-v021/cross_domain_inventory/zenodo_candidates.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          Path('.causal-loom-v021/cross_domain_inventory/MEASUREMENT_ACCESS_STATUS.txt').write_text('Metadata only. No candidate measurement file was downloaded or opened.\n')
+          print('CROSS_DOMAIN_TOP='+json.dumps([{'id':x['record_id'],'title':x['title'],'domains':x['domains'],'score':x['metadata_suitability_score'],'files':[f['key'] for f in x['files'][:5]]} for x in ranked[:20]],sort_keys=True))
+          PY
+      - name: Commit untouched candidate inventory
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/cross_domain_inventory
+          git commit -m 'Inventory untouched cross-domain physical response datasets'
+          git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831
