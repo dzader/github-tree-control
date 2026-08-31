@@ -1,0 +1,12 @@
+{
+  "claim_status": "not_yet_supported",
+  "development": null,
+  "freeze_refusal": {
+    "confirmation_measurement_values_accessed": false,
+    "freeze_refused": true,
+    "reason": "missing_.causal-loom-v021_selected_holdout_metadata_METADATA_MANIFEST.json"
+  },
+  "frozen_confirmation": null,
+  "scientific_status": "cross_domain_pipeline_running",
+  "split_protocol": null
+}
