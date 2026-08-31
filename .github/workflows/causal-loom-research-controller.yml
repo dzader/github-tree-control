@@ -1,0 +1,109 @@
+name: Causal Loom evidence-driven research controller
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/development_result/**'
+      - '.causal-loom-v019/lowrank_v2_development_result/**'
+      - '.causal-loom-v020/lie_development_result/**'
+      - '.causal-loom-v019/frozen_result/**'
+      - '.causal-loom-v019/lowrank_frozen_result/**'
+      - '.causal-loom-v020/lie_frozen_result/**'
+      - '.causal-loom-v019/freeze_refused/**'
+      - '.causal-loom-v019/lowrank_freeze_refused/**'
+      - '.causal-loom-v020/lie_freeze_refused/**'
+      - '.causal-loom-v021/cross_domain_inventory/**'
+      - '.github/workflows/causal-loom-research-controller.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  decide:
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: causal-loom-research-controller
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Compute scientific state and next legal action
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path('.')
+          def load(path):
+              p=root/path
+              return json.load(open(p)) if p.exists() else None
+          dev={
+            'shift':load(Path('.causal-loom-v019/development_result/development_summary.json')),
+            'lowrank':load(Path('.causal-loom-v019/lowrank_v2_development_result/development_summary.json')),
+            'lie':load(Path('.causal-loom-v020/lie_development_result/development_summary.json')),
+          }
+          external={
+            'shift':load(Path('.causal-loom-v019/frozen_result/results.json')),
+            'lowrank':load(Path('.causal-loom-v019/lowrank_frozen_result/results.json')),
+            'lie':load(Path('.causal-loom-v020/lie_frozen_result/results.json')),
+          }
+          passes=[name for name,x in external.items() if x and x.get('primary_pass')]
+          consumed=any(x is not None for x in external.values()) or any((root/p).exists() for p in [Path('.causal-loom-v019/frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt'),Path('.causal-loom-v019/lowrank_frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt'),Path('.causal-loom-v020/lie_frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt')])
+          dev_pass={name:bool(x and x.get('development_gate',{}).get('pass')) for name,x in dev.items()}
+          action='wait'
+          reason='awaiting_matched_development_results'
+          workflow=None
+          if passes:
+              action='stop_success';reason='independent_frozen_external_pass';workflow=None
+          elif consumed:
+              if any(x is not None for x in external.values()):
+                  action='reserve_new_domain';reason='enola_consumed_without_external_pass';workflow='causal-loom-v021-cross-domain-metadata-inventory.yml'
+              else:
+                  action='wait';reason='enola_frozen_test_running_or_package_committed';workflow=None
+          elif dev['shift'] is not None and dev_pass['shift']:
+              action='dispatch';reason='shift_is_first_eligible_candidate';workflow='causal-loom-v019-build-frozen-package.yml'
+          elif dev['shift'] is not None and not dev_pass['shift'] and dev['lowrank'] is not None and dev_pass['lowrank']:
+              action='dispatch';reason='shift_failed_lowrank_is_next_eligible';workflow='causal-loom-v019-build-lowrank-frozen-package.yml'
+          elif all(dev[name] is not None for name in ('shift','lowrank')) and not dev_pass['shift'] and not dev_pass['lowrank'] and dev['lie'] is not None and dev_pass['lie']:
+              action='dispatch';reason='earlier_candidates_failed_lie_is_eligible';workflow='causal-loom-v020-build-lie-frozen-package.yml'
+          elif all(dev[name] is not None for name in ('shift','lowrank','lie')):
+              action='reserve_new_domain';reason='all_matched_five_probe_candidates_failed';workflow='causal-loom-v021-cross-domain-metadata-inventory.yml'
+          state={'action':action,'reason':reason,'workflow':workflow,'development_pass':dev_pass,'external_present':{k:v is not None for k,v in external.items()},'external_passes':passes,'enola_reserved_or_consumed':consumed}
+          Path('.causal-loom-controller').mkdir(exist_ok=True)
+          Path('.causal-loom-controller/STATE.json').write_text(json.dumps(state,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom research controller','',f"Action: **{action}**",f"Reason: **{reason}**",'', '```json',json.dumps(state,indent=2,sort_keys=True),'```','']
+          Path('.causal-loom-controller/STATE.md').write_text('\n'.join(lines))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write(f'action={action}\n');f.write(f'workflow={workflow or ""}\n');f.write(f'reason={reason}\n')
+          print(json.dumps(state,sort_keys=True))
+          PY
+      - name: Commit controller state
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-controller/STATE.json .causal-loom-controller/STATE.md
+          if ! git diff --cached --quiet;then git commit -m 'Update evidence-driven research controller state';git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;fi
+      - name: Dispatch next legal workflow
+        if: steps.state.outputs.action == 'dispatch' || steps.state.outputs.action == 'reserve_new_domain'
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='${{ steps.state.outputs.workflow }}'
+          test -n "$workflow"
+          latest=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=causal-loom-v019-projective-atlas-enola-20260831&per_page=1" --jq '.workflow_runs[0] // {}')
+          status=$(printf '%s' "$latest"|jq -r '.status // "none"')
+          created=$(printf '%s' "$latest"|jq -r '.created_at // ""')
+          echo "latest_workflow=$workflow status=$status created=$created"
+          if [ "$status" = queued ] || [ "$status" = in_progress ];then echo 'Workflow already active';exit 0;fi
+          gh workflow run "$workflow" --ref causal-loom-v019-projective-atlas-enola-20260831
