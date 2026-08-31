@@ -77,7 +77,7 @@ jobs:
                   seen.add(r['url']);uniq.append(r)
               if len(uniq)<4: continue
               families.append({'family':fam,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],'run_count':len(uniq),'runs':uniq,'family_rank_hash':hashlib.sha256(('family\0'+fam).encode()).hexdigest()})
-          payload={'source_index':os.environ['V3_INDEX'],'postfailure_geometry_audit':True,'corrected_families':['ancf_125x6','ancf_125x75','ancf_125x9'],'family_count':len(families),'run_count':sum(f['run_count'] for f in families),'families':families}
+          payload={'source_index':os.environ['V3_INDEX'],'index_sha256':hashlib.sha256(raw).hexdigest(),'postfailure_geometry_audit':True,'corrected_families':['ancf_125x6','ancf_125x75','ancf_125x9'],'family_count':len(families),'run_count':sum(f['run_count'] for f in families),'families':families}
           Path(os.environ['OUT']).write_text(json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n')
           print('CORRECTED_METADATA',len(families),sum(f['run_count'] for f in families))
           PY
@@ -129,7 +129,7 @@ jobs:
           cat "$RUNNER_TEMP/audit.log"
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v018-v017-geometry-postfailure-audit-r2
+          name: causal-loom-v018-v017-geometry-postfailure-audit-r3
           path: causal-loom-v018-v017-geometry-audit
           if-no-files-found: error
           retention-days: 90
