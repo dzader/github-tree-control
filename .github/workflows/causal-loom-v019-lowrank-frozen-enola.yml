@@ -1,0 +1,114 @@
+name: Causal Loom v0.19 low-rank frozen ENOLA confirmation
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/lowrank_frozen/**'
+      - '.github/workflows/causal-loom-v019-lowrank-frozen-enola.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  frozen-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+      - name: Enforce independent first-access path
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f .causal-loom-v019/frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt
+          test ! -f .causal-loom-v019/frozen_result/results.json
+          test -f .causal-loom-v019/lowrank_frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt
+          grep -qx YES .causal-loom-v019/lowrank_frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt
+      - name: Verify low-rank frozen package
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum --check .causal-loom-v019/lowrank_frozen/SHA256SUMS.txt
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=json.load(open('.causal-loom-v019/lowrank_frozen/V019_LOWRANK_FROZEN_PROTOCOL.json'))
+          checks={
+            '.causal-loom-v019/lowrank_frozen/V019_LOWRANK_ATLAS_MODEL.json':p['integrity']['model_sha256'],
+            '.causal-loom-v019/develop_projective_transport_atlas.py':p['integrity']['shared_module_sha256'],
+            '.causal-loom-v019/develop_lowrank_projective_atlas.py':p['integrity']['lowrank_module_sha256'],
+            '.causal-loom-v019/run_v019_lowrank_enola_frozen.py':p['integrity']['frozen_runner_sha256'],
+            '.causal-loom-v019/lowrank_v2_development_result/development_summary.json':p['integrity']['development_summary_sha256'],
+            '.causal-loom-v019/enola_metadata/metadata_summary.json':p['integrity']['metadata_summary_sha256'],
+          }
+          for path,expected in checks.items():
+              actual=hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              if actual!=expected:raise RuntimeError(f'integrity mismatch {path}: {actual} != {expected}')
+          print('LOWRANK_FROZEN_SCIENTIFIC_FILES_VERIFIED')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deterministic frozen dependencies
+        run: pip install numpy==2.1.3 scikit-learn==1.5.2 openpyxl==3.1.5
+      - name: Self-test evaluator before measurement access
+        run: |
+          python .causal-loom-v019/run_v019_lowrank_enola_frozen.py \
+            --shared-module .causal-loom-v019/develop_projective_transport_atlas.py \
+            --lowrank-module .causal-loom-v019/develop_lowrank_projective_atlas.py \
+            --self-test
+      - name: Retrieve and verify immutable ENOLA archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 4 "$ENOLA_URL" -o "$RUNNER_TEMP/Propeller_Database.zip"
+          expected=$(python -c 'import json;print(json.load(open(".causal-loom-v019/lowrank_frozen/V019_LOWRANK_FROZEN_PROTOCOL.json"))["holdout"]["archive_sha256"])')
+          actual=$(sha256sum "$RUNNER_TEMP/Propeller_Database.zip"|cut -d' ' -f1)
+          test "$actual" = "$expected"
+          echo ENOLA_ARCHIVE_VERIFIED
+      - name: Execute first and permanent low-rank ENOLA evaluation
+        id: evaluate
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v019-lowrank-enola-frozen-output
+          python .causal-loom-v019/run_v019_lowrank_enola_frozen.py \
+            --protocol .causal-loom-v019/lowrank_frozen/V019_LOWRANK_FROZEN_PROTOCOL.json \
+            --model .causal-loom-v019/lowrank_frozen/V019_LOWRANK_ATLAS_MODEL.json \
+            --shared-module .causal-loom-v019/develop_projective_transport_atlas.py \
+            --lowrank-module .causal-loom-v019/develop_lowrank_projective_atlas.py \
+            --parser-module .causal-loom-v019/run_v019_enola_frozen.py \
+            --archive "$RUNNER_TEMP/Propeller_Database.zip" \
+            --output-dir causal-loom-v019-lowrank-enola-frozen-output \
+            > "$RUNNER_TEMP/lowrank-frozen.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v019-lowrank-enola-frozen-output
+          cp "$RUNNER_TEMP/lowrank-frozen.log" causal-loom-v019-lowrank-enola-frozen-output/stdout.log
+          cat "$RUNNER_TEMP/lowrank-frozen.log"
+          echo "$status" > causal-loom-v019-lowrank-enola-frozen-output/EXECUTION_EXIT_STATUS.txt
+          cp .causal-loom-v019/lowrank_frozen/V019_LOWRANK_FROZEN_PROTOCOL.json causal-loom-v019-lowrank-enola-frozen-output/
+          cp .causal-loom-v019/lowrank_frozen/V019_LOWRANK_ATLAS_MODEL.json causal-loom-v019-lowrank-enola-frozen-output/
+          cp .causal-loom-v019/run_v019_lowrank_enola_frozen.py causal-loom-v019-lowrank-enola-frozen-output/
+          find causal-loom-v019-lowrank-enola-frozen-output -type f ! -name FILES_SHA256SUMS.txt -print0|sort -z|xargs -0 sha256sum > causal-loom-v019-lowrank-enola-frozen-output/FILES_SHA256SUMS.txt
+          echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v019-lowrank-enola-frozen-evidence
+          path: causal-loom-v019-lowrank-enola-frozen-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+      - name: Preserve frozen scientific verdict
+        run: exit '${{ steps.evaluate.outputs.exit_status }}'
