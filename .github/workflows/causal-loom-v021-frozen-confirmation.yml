@@ -1,0 +1,138 @@
+name: Causal Loom v0.21 frozen cross-domain confirmation
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/frozen/**'
+      - '.github/workflows/causal-loom-v021-frozen-confirmation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  frozen-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+      - name: Verify frozen scientific package before confirmation access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .causal-loom-v021/frozen/READY_FOR_CONFIRMATION_ACCESS.txt
+          grep -qx YES .causal-loom-v021/frozen/READY_FOR_CONFIRMATION_ACCESS.txt
+          grep -qi '^False' .causal-loom-v021/frozen/CONFIRMATION_ACCESS_STATUS.txt
+          sha256sum --check .causal-loom-v021/frozen/SHA256SUMS.txt
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=json.load(open('.causal-loom-v021/frozen/V021_FROZEN_PROTOCOL.json'))
+          checks={
+            '.causal-loom-v021/frozen/V021_FROZEN_MODEL.json':p['integrity']['frozen_model_sha256'],
+            '.causal-loom-v021/development_result/development_summary.json':p['integrity']['development_summary_sha256'],
+            '.causal-loom-v021/development_result/development_model.json':p['integrity']['development_model_sha256'],
+            '.causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json':p['integrity']['premeasurement_protocol_sha256'],
+            '.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json':p['integrity']['metadata_manifest_sha256'],
+            '.causal-loom-v021/develop_cross_domain_projective_response_atlas.py':p['integrity']['development_runner_sha256'],
+            '.causal-loom-v021/run_cross_domain_frozen_confirmation.py':p['integrity']['frozen_runner_sha256'],
+          }
+          for path,expected in checks.items():
+              actual=hashlib.sha256(Path(path).read_bytes()).hexdigest()
+              if actual!=expected:raise RuntimeError(f'integrity mismatch {path}: {actual} != {expected}')
+          print('V021_FROZEN_PACKAGE_VERIFIED')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deterministic frozen dependencies
+        run: pip install numpy==2.1.3 pandas==2.2.3 scipy==1.14.1 scikit-learn==1.5.2 openpyxl==3.1.5 h5py==3.12.1 pyarrow==17.0.0
+      - name: Self-test evaluator before confirmation access
+        run: |
+          python .causal-loom-v021/run_cross_domain_frozen_confirmation.py \
+            --shared-module .causal-loom-v021/develop_cross_domain_projective_response_atlas.py \
+            --self-test
+      - name: Retrieve confirmation-family files for first and permanent evaluation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/v021-confirmation";mkdir -p "$RUNNER_TEMP/v021-confirmation/downloads" "$RUNNER_TEMP/v021-confirmation/extracted"
+          export ROOT="$RUNNER_TEMP/v021-confirmation"
+          python - <<'PY'
+          import json,os,urllib.request,zipfile
+          from pathlib import Path
+          protocol=json.load(open('.causal-loom-v021/frozen/V021_FROZEN_PROTOCOL.json'))
+          metadata=json.load(open('.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json'))
+          root=Path(os.environ['ROOT']);downloads=root/'downloads';extracted=root/'extracted'
+          rows=[]
+          for family in protocol['confirmation']['families']:
+              for file in family['files']:rows.append({'family_key':family['family_key'],'split':'confirmation',**file})
+          top={f['key']:f for f in metadata['files']};downloaded={};manifest=[]
+          for row in rows:
+              container=row.get('container')
+              if container:
+                  source=top.get(container)
+                  if not source:raise RuntimeError(f'archive container missing: {container}')
+                  if container not in downloaded:
+                      target=downloads/Path(container).name;urllib.request.urlretrieve(source['url'],target);downloaded[container]=target
+                  with zipfile.ZipFile(downloaded[container]) as archive:
+                      if row['path'] not in archive.namelist():raise RuntimeError(f'missing confirmation member: {row["path"]}')
+                      out=extracted/row['family_key'].replace(':','__')/Path(row['path']).name;out.parent.mkdir(parents=True,exist_ok=True);out.write_bytes(archive.read(row['path']))
+              else:
+                  source=top.get(row['path'])
+                  if not source:raise RuntimeError(f'top-level confirmation file missing: {row["path"]}')
+                  out=extracted/row['family_key'].replace(':','__')/Path(row['path']).name;out.parent.mkdir(parents=True,exist_ok=True);urllib.request.urlretrieve(source['url'],out)
+              manifest.append({'family_key':row['family_key'],'split':'confirmation','source_path':row['path'],'local_relative_path':str(out.relative_to(extracted)),'bytes':out.stat().st_size})
+          (root/'confirmation_extraction_manifest.json').write_text(json.dumps(manifest,indent=2,sort_keys=True)+'\n')
+          print('CONFIRMATION_FILES_EXTRACTED',len(manifest),'FAMILIES',len(set(x['family_key'] for x in manifest)))
+          PY
+      - name: Execute first and permanent cross-domain confirmation
+        id: evaluate
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v021-frozen-output
+          python .causal-loom-v021/run_cross_domain_frozen_confirmation.py \
+            --protocol .causal-loom-v021/frozen/V021_FROZEN_PROTOCOL.json \
+            --model .causal-loom-v021/frozen/V021_FROZEN_MODEL.json \
+            --split-protocol .causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json \
+            --shared-module .causal-loom-v021/develop_cross_domain_projective_response_atlas.py \
+            --extraction-manifest "$RUNNER_TEMP/v021-confirmation/confirmation_extraction_manifest.json" \
+            --data-root "$RUNNER_TEMP/v021-confirmation/extracted" \
+            --output-dir causal-loom-v021-frozen-output \
+            > "$RUNNER_TEMP/v021-frozen.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v021-frozen-output
+          cp "$RUNNER_TEMP/v021-frozen.log" causal-loom-v021-frozen-output/stdout.log
+          cp "$RUNNER_TEMP/v021-confirmation/confirmation_extraction_manifest.json" causal-loom-v021-frozen-output/
+          cp .causal-loom-v021/frozen/V021_FROZEN_PROTOCOL.json causal-loom-v021-frozen-output/
+          cp .causal-loom-v021/frozen/V021_FROZEN_MODEL.json causal-loom-v021-frozen-output/
+          cp .causal-loom-v021/run_cross_domain_frozen_confirmation.py causal-loom-v021-frozen-output/
+          cat "$RUNNER_TEMP/v021-frozen.log"
+          echo "$status" > causal-loom-v021-frozen-output/EXECUTION_EXIT_STATUS.txt
+          printf 'python=' > causal-loom-v021-frozen-output/RUNTIME_ENVIRONMENT.txt
+          python --version >> causal-loom-v021-frozen-output/RUNTIME_ENVIRONMENT.txt 2>&1
+          python -c 'import numpy,pandas,scipy,sklearn,openpyxl,h5py;print("numpy="+numpy.__version__);print("pandas="+pandas.__version__);print("scipy="+scipy.__version__);print("sklearn="+sklearn.__version__);print("openpyxl="+openpyxl.__version__);print("h5py="+h5py.__version__)' >> causal-loom-v021-frozen-output/RUNTIME_ENVIRONMENT.txt
+          find causal-loom-v021-frozen-output -type f ! -name FILES_SHA256SUMS.txt -print0|sort -z|xargs -0 sha256sum > causal-loom-v021-frozen-output/FILES_SHA256SUMS.txt
+          echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v021-cross-domain-frozen-evidence
+          path: causal-loom-v021-frozen-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+      - name: Preserve frozen scientific verdict
+        shell: bash
+        run: exit '${{ steps.evaluate.outputs.exit_status }}'
