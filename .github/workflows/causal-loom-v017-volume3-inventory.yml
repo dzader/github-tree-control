@@ -1,0 +1,105 @@
+name: Causal Loom v0.17 UIUC Volume 3 metadata inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v017-coordinate-field-20260831
+    paths:
+      - '.github/workflows/causal-loom-v017-volume3-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v017-coordinate-field-20260831
+      - name: Build metadata-only Volume 3 inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          INDEX='https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html'
+          curl --fail --silent --show-error -L "$INDEX" -o "$RUNNER_TEMP/index.html"
+          python - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          root=Path(os.environ['RUNNER_TEMP'])
+          raw=(root/'index.html').read_bytes()
+          html=raw.decode('utf-8','replace')
+          hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
+          base='https://m-selig.ae.illinois.edu/props/volume-3/'
+          dyn=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$',re.I)
+          dim=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)(?:f)?(?:_|$)',re.I)
+          entries=[]
+          for href in hrefs:
+              name=Path(href).name
+              if '_static_' in name.lower() or 'static' in name.lower():
+                  continue
+              m=dyn.match(name)
+              if not m:
+                  continue
+              parts=m.group('prefix').split('_')
+              if len(parts)<2:
+                  continue
+              family='_'.join(parts[:-1])
+              dm=dim.search(family+'_')
+              if not dm:
+                  continue
+              row={
+                  'href':href,
+                  'url':urljoin(base,href),
+                  'filename':name,
+                  'family':family,
+                  'diameter_in':float(dm.group('D')),
+                  'pitch_in':float(dm.group('P')),
+                  'rpm':int(m.group('rpm')),
+                  'rank_hash':hashlib.sha256((href+'\0'+name).encode()).hexdigest(),
+              }
+              entries.append(row)
+          by={}
+          for r in entries:
+              by.setdefault(r['family'],[]).append(r)
+          families=[]
+          for fam,rows in sorted(by.items()):
+              # exact href dedupe only; retain duplicate/near-duplicate RPM experiments.
+              seen=set(); uniq=[]
+              for r in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if r['url'] in seen: continue
+                  seen.add(r['url']); uniq.append(r)
+              if len(uniq)<4: continue
+              families.append({
+                  'family':fam,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],
+                  'run_count':len(uniq),'runs':uniq,
+                  'family_rank_hash':hashlib.sha256(('family\0'+fam).encode()).hexdigest(),
+              })
+          payload={
+              'source_index':INDEX,
+              'index_sha256':hashlib.sha256(raw).hexdigest(),
+              'contents_read':False,
+              'selection':'dynamic txt hrefs only; filename ends _RPM.txt; family=prefix minus provenance token; >=4 runs',
+              'family_count':len(families),
+              'run_count':sum(f['run_count'] for f in families),
+              'families':families,
+          }
+          out=root/'v017-volume3-inventory';out.mkdir()
+          text=json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n'
+          (out/'inventory.json').write_text(text)
+          (out/'INVENTORY_SHA256.txt').write_text(hashlib.sha256(text.encode()).hexdigest()+'  inventory.json\n')
+          (out/'INDEX_SHA256.txt').write_text(hashlib.sha256(raw).hexdigest()+'  propDB-volume-3.html\n')
+          print('METADATA_ONLY',len(families),sum(f['run_count'] for f in families),hashlib.sha256(raw).hexdigest(),hashlib.sha256(text.encode()).hexdigest())
+          if len(families)<30:
+              raise RuntimeError('unexpectedly small Volume 3 family inventory')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v017-uiuc-volume3-metadata-inventory
+          path: ${{ runner.temp }}/v017-volume3-inventory
+          if-no-files-found: error
+          retention-days: 90
