@@ -32,13 +32,14 @@ jobs:
           stat --printf='%s\n' "$RUNNER_TEMP/Propeller_Database.zip" > "$OUT/ARCHIVE_BYTES.txt"
           unzip -Z1 "$RUNNER_TEMP/Propeller_Database.zip" | LC_ALL=C sort > "$OUT/ARCHIVE_PATHS.txt"
           unzip -l "$RUNNER_TEMP/Propeller_Database.zip" > "$OUT/ARCHIVE_LISTING.txt"
-          # Only documentation and general inventory are extracted. No result table is opened.
+          # Only documentation and the general inventory workbook are extracted. No result table is opened.
           python - <<'PY'
           import json, os, zipfile
           from pathlib import Path
           zpath=Path(os.environ['RUNNER_TEMP'])/'Propeller_Database.zip'
           out=Path(os.environ['RUNNER_TEMP'])/'causal-loom-v019-enola-metadata'
           selected=[]
+          allowed_inventory={'generalinfo.xlsx','general_info.xlsx','00_generalnfo.xlsx','00_generalinfo.xlsx'}
           with zipfile.ZipFile(zpath) as z:
               names=z.namelist()
               for name in names:
@@ -48,7 +49,7 @@ jobs:
                       target=out/'readmes'/('__'.join(Path(name).parts))
                       target.write_bytes(data)
                       selected.append({'archive_path':name,'bytes':len(data),'extracted_to':str(target.relative_to(out))})
-                  elif base in {'generalinfo.xlsx','general_info.xlsx'}:
+                  elif base in allowed_inventory:
                       data=z.read(name)
                       target=out/Path(name).name
                       target.write_bytes(data)
@@ -59,7 +60,7 @@ jobs:
           echo 'No numeric result file was extracted or parsed in this inventory.' > "$OUT/MEASUREMENT_ACCESS_STATUS.txt"
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v019-enola-metadata-only
+          name: causal-loom-v019-enola-metadata-only-r2
           path: ${{ runner.temp }}/causal-loom-v019-enola-metadata
           if-no-files-found: error
           retention-days: 90
