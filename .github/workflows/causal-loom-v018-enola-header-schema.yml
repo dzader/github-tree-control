@@ -1,0 +1,86 @@
+name: Causal Loom v0.18 post-freeze ENOLA header schema
+
+on:
+  push:
+    branches:
+      - causal-loom-v018-local-reynolds-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-enola-header-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+  FROZEN_PROTOCOL_BLOB_SHA: 45f9857ae9e44543ae3f06d4d6efde58ce881aa4
+
+jobs:
+  schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v018-local-reynolds-20260831
+      - name: Verify scientific protocol is frozen
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .causal-loom-v018/V018_FROZEN_PROTOCOL.json)" = "$FROZEN_PROTOCOL_BLOB_SHA"
+      - name: Range-fetch selected members and emit headers only
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/v018-enola-header-schema"; mkdir -p "$OUT"; export OUT
+          python - <<'PY'
+          import hashlib,json,os,struct,urllib.request,zlib
+          from pathlib import Path
+          URL=os.environ['ENOLA_URL']; out=Path(os.environ['OUT'])
+          protocol=json.load(open('.causal-loom-v018/V018_FROZEN_PROTOCOL.json'))
+          wanted={x['result_path'] for x in protocol['eligible_propellers']}
+          def get(a,b=None):
+              hdr={'Range':f'bytes={a}-'+('' if b is None else str(b)),'User-Agent':'causal-loom-schema/1'}
+              with urllib.request.urlopen(urllib.request.Request(URL,headers=hdr),timeout=60) as r:return r.read()
+          with urllib.request.urlopen(urllib.request.Request(URL,method='HEAD',headers={'User-Agent':'causal-loom-schema/1'}),timeout=60) as r:size=int(r.headers['Content-Length'])
+          tail=get(max(0,size-65557),size-1);pos=tail.rfind(b'PK\x05\x06')
+          if pos<0:raise RuntimeError('EOCD')
+          _,_,_,_,_,cdsize,cdoff,_=struct.unpack('<4s4H2LH',tail[pos:pos+22]);cd=get(cdoff,cdoff+cdsize-1)
+          entries={};i=0
+          while i+46<=len(cd) and cd[i:i+4]==b'PK\x01\x02':
+              f=struct.unpack('<4s6H3L5H2L',cd[i:i+46]);comp=f[4];csize=f[8];usize=f[9];nlen=f[10];xlen=f[11];clen=f[12];loff=f[16]
+              name=cd[i+46:i+46+nlen].decode('utf-8','replace');entries[name]={'comp':comp,'csize':csize,'usize':usize,'loff':loff};i+=46+nlen+xlen+clen
+          result=[]
+          for path in sorted(wanted):
+              e=entries.get(path)
+              if not e:raise RuntimeError('missing '+path)
+              lh=get(e['loff'],e['loff']+2047);v=struct.unpack('<4s5H3L2H',lh[:30]);nlen=v[9];xlen=v[10];start=e['loff']+30+nlen+xlen
+              cb=get(start,start+e['csize']-1)
+              raw=cb if e['comp']==0 else zlib.decompress(cb,-15)
+              # Decode member but never serialize/print numerical data rows.
+              text=raw.decode('utf-8-sig','replace').splitlines()
+              header=[]; first_numeric_line_index=None
+              for idx,line in enumerate(text):
+                  toks=[t.strip().strip('"') for t in line.replace(';',',').replace('\t',',').split(',')]
+                  nums=0
+                  for t in toks:
+                      if not t:continue
+                      try:float(t);nums+=1
+                      except:pass
+                  if len(toks)>=2 and nums>=max(2,len([t for t in toks if t])//2):
+                      first_numeric_line_index=idx;break
+                  header.append(line)
+                  if len(header)>=20:break
+              result.append({'path':path,'header_lines':header,'first_numeric_line_index':first_numeric_line_index,'result_values_recorded':False})
+          payload={'frozen_protocol_blob_sha':os.environ['FROZEN_PROTOCOL_BLOB_SHA'],'result_values_recorded':False,'files':result}
+          txt=json.dumps(payload,indent=2,sort_keys=True)+'\n';(out/'header_schema.json').write_text(txt)
+          (out/'SHA256.txt').write_text(hashlib.sha256(txt.encode()).hexdigest()+'  header_schema.json\n')
+          print('HEADER_SCHEMA_OK',len(result))
+          for r in result: print(r['path'],json.dumps(r['header_lines']))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-enola-postfreeze-header-schema
+          path: ${{ runner.temp }}/v018-enola-header-schema
+          if-no-files-found: error
+          retention-days: 90
