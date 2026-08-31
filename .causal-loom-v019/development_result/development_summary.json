@@ -1,0 +1,95 @@
+{
+  "atlas_diagnostics": {
+    "full_atlas_weight_fraction": 0.075,
+    "median_atlas_weight": 0.0,
+    "median_tau": -0.1361991819546333,
+    "nonzero_atlas_weight_fraction": 0.475
+  },
+  "development_gate": {
+    "atlas_ratio_vs_best_learned_control": 0.8097492692728823,
+    "best_learned_control_geometric_mean_joint": 0.0521606264192226,
+    "pass": false,
+    "requirements": {
+      "geometric_mean_ratio_vs_fixed_lte": 0.92,
+      "geometric_mean_vs_best_learned_control_lte": 0.9,
+      "win_fraction_vs_fixed_gte": 0.65,
+      "worst_ratio_vs_fixed_lte": 1.8
+    }
+  },
+  "family_count": 40,
+  "methods": {
+    "direct_poly": {
+      "geometric_mean_joint": 0.0521606264192226,
+      "geometric_mean_ratio_vs_fixed": 1.2779180073520424,
+      "median_joint": 0.05055498134807242,
+      "median_ratio_vs_fixed": 1.339558138463251,
+      "p90_ratio_vs_fixed": 1.9151699312328587,
+      "win_fraction_vs_fixed": 0.25,
+      "worst_ratio_vs_fixed": 3.2216816346814436
+    },
+    "extra_trees": {
+      "geometric_mean_joint": 0.07061668148842798,
+      "geometric_mean_ratio_vs_fixed": 1.7300852211439126,
+      "median_joint": 0.0685801522192954,
+      "median_ratio_vs_fixed": 1.679617619154544,
+      "p90_ratio_vs_fixed": 2.9891680628747808,
+      "win_fraction_vs_fixed": 0.125,
+      "worst_ratio_vs_fixed": 3.9196810665829305
+    },
+    "fixed": {
+      "geometric_mean_joint": 0.040816880362539054,
+      "geometric_mean_ratio_vs_fixed": 1.0,
+      "median_joint": 0.041683725867074944,
+      "median_ratio_vs_fixed": 1.0,
+      "p90_ratio_vs_fixed": 1.0,
+      "win_fraction_vs_fixed": 0.0,
+      "worst_ratio_vs_fixed": 1.0
+    },
+    "hist_gb": {
+      "geometric_mean_joint": 0.06420245902187828,
+      "geometric_mean_ratio_vs_fixed": 1.572938903013325,
+      "median_joint": 0.05661650454125024,
+      "median_ratio_vs_fixed": 1.528991517443263,
+      "p90_ratio_vs_fixed": 2.9168428195458214,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 5.4474885429210245
+    },
+    "mlp": {
+      "geometric_mean_joint": 0.09361576970326194,
+      "geometric_mean_ratio_vs_fixed": 2.2935552367490755,
+      "median_joint": 0.0968814646838206,
+      "median_ratio_vs_fixed": 2.3572067779718173,
+      "p90_ratio_vs_fixed": 3.4131519033915954,
+      "win_fraction_vs_fixed": 0.025,
+      "worst_ratio_vs_fixed": 6.573671301551438
+    },
+    "plain_j": {
+      "geometric_mean_joint": 0.04785393183186777,
+      "geometric_mean_ratio_vs_fixed": 1.1724054216496955,
+      "median_joint": 0.04494317354362824,
+      "median_ratio_vs_fixed": 1.1558861860457077,
+      "p90_ratio_vs_fixed": 1.6566353368832734,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 2.77225159217756
+    },
+    "raw_atlas": {
+      "geometric_mean_joint": 0.07276537986084362,
+      "geometric_mean_ratio_vs_fixed": 1.7827276169696276,
+      "median_joint": 0.07191461280217763,
+      "median_ratio_vs_fixed": 1.4734011350047462,
+      "p90_ratio_vs_fixed": 4.182259237329827,
+      "win_fraction_vs_fixed": 0.175,
+      "worst_ratio_vs_fixed": 10.042450319568974
+    },
+    "safe_atlas": {
+      "geometric_mean_joint": 0.0422370291277813,
+      "geometric_mean_ratio_vs_fixed": 1.0347931726439739,
+      "median_joint": 0.041683725867074944,
+      "median_ratio_vs_fixed": 1.0,
+      "p90_ratio_vs_fixed": 1.7069005567133206,
+      "win_fraction_vs_fixed": 0.3,
+      "worst_ratio_vs_fixed": 3.09612989516242
+    }
+  },
+  "protocol": "five-family-disjoint-folds; exactly five output-blind maximin probes; cubic fixed-coordinate control"
+}
