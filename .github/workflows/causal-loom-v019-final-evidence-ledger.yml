@@ -1,0 +1,108 @@
+name: Causal Loom v0.19 final tiered evidence ledger
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/development_result/**'
+      - '.causal-loom-v019/lowrank_v2_development_result/**'
+      - '.causal-loom-v019/frozen_result/**'
+      - '.causal-loom-v019/lowrank_frozen_result/**'
+      - '.causal-loom-v019/freeze_refused/**'
+      - '.causal-loom-v019/lowrank_freeze_refused/**'
+      - '.causal-loom-v020/fresh_dataset_inventory/**'
+      - '.github/workflows/causal-loom-v019-final-evidence-ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ledger:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Build tiered machine-readable and narrative ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.causal-loom-v019')
+          def load(path):
+              p=Path(path)
+              return json.load(open(p)) if p.exists() else None
+          candidates=[]
+          for key,label,path in [
+              ('transport_shift','Shared transport-shift atlas',root/'development_result/development_summary.json'),
+              ('lowrank_tangent','Low-rank projective tangent atlas',root/'lowrank_v2_development_result/development_summary.json'),
+          ]:
+              x=load(path)
+              if x is None:continue
+              m=x['methods']['safe_atlas'];g=x['development_gate']
+              row={'key':key,'label':label,'development_pass':bool(g['pass']),'family_count':x['family_count'],'gm_ratio_vs_fixed':m['geometric_mean_ratio_vs_fixed'],'win_fraction_vs_fixed':m['win_fraction_vs_fixed'],'worst_ratio_vs_fixed':m['worst_ratio_vs_fixed'],'geometric_mean_error':m['geometric_mean_joint'],'source_path':str(path)}
+              if key=='lowrank_tangent':row['tangent_mode_projective_correlation']=x.get('tangent_mode_projective_correlation')
+              candidates.append(row)
+          external=[]
+          for key,label,path in [
+              ('transport_shift_enola','Shared transport-shift atlas on ENOLA',root/'frozen_result/results.json'),
+              ('lowrank_tangent_enola','Low-rank tangent atlas on ENOLA',root/'lowrank_frozen_result/results.json'),
+          ]:
+              x=load(path)
+              if x is None:continue
+              external.append({'key':key,'label':label,'primary_pass':bool(x['primary_pass']),'summary':x.get('summary'),'gates':x.get('gates'),'source_path':str(path)})
+          external_passes=[x for x in external if x['primary_pass']]
+          development_passes=[x for x in candidates if x['development_pass']]
+          if external_passes:
+              scientific_status='independent_physical_confirmation_pass'
+              contribution_status='plausibly_novel_integrated_contribution_with_frozen_external_evidence'
+          elif external:
+              scientific_status='independent_physical_confirmation_failed'
+              contribution_status='development_novelty_candidate_not_confirmed'
+          elif development_passes:
+              scientific_status='development_pass_external_pending_or_ineligible'
+              contribution_status='plausibly_novel_development_result_only'
+          else:
+              scientific_status='no_five_probe_candidate_passed'
+              contribution_status='hypothesis_not_supported_at_required_budget'
+          fresh=load('.causal-loom-v020/fresh_dataset_inventory/zenodo_candidates.json')
+          ledger={'scientific_status':scientific_status,'contribution_status':contribution_status,'candidates':candidates,'external_confirmations':external,'fresh_holdout_inventory':None if fresh is None else {'candidate_count':fresh.get('candidate_count'),'measurement_values_accessed':fresh.get('measurement_values_accessed'),'top_candidates':fresh.get('candidates',[])[:10]}}
+          root.mkdir(exist_ok=True)
+          (root/'FINAL_EVIDENCE_LEDGER.json').write_text(json.dumps(ledger,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom v0.19 final evidence ledger','',f"Scientific status: **{scientific_status}**",f"Contribution status: **{contribution_status}**",'']
+          lines += ['## Matched five-probe development','','| Candidate | Pass | Families | GM ratio vs fixed cubic | Wins | Worst ratio |','|---|---:|---:|---:|---:|---:|']
+          for x in candidates:lines.append(f"| {x['label']} | {'PASS' if x['development_pass'] else 'FAIL'} | {x['family_count']} | {x['gm_ratio_vs_fixed']:.6f} | {x['win_fraction_vs_fixed']:.3f} | {x['worst_ratio_vs_fixed']:.3f} |")
+          if not candidates:lines.append('| No captured candidate | — | — | — | — | — |')
+          lines += ['','## Independent ENOLA confirmation','']
+          if external:
+              for x in external:
+                  lines.append(f"### {x['label']}")
+                  lines.append('')
+                  lines.append(f"Primary verdict: **{'PASS' if x['primary_pass'] else 'FAIL'}**")
+                  lines.append('')
+                  lines.append('```json')
+                  lines.append(json.dumps({'summary':x['summary'],'gates':x['gates']},indent=2,sort_keys=True))
+                  lines.append('```')
+                  lines.append('')
+          else:lines.append('No independent ENOLA result has been captured.')
+          lines += ['','## Claim boundary','']
+          if external_passes:
+              lines.append('A matched-budget, independently frozen physical confirmation supports the atlas factorization. This remains a plausibly novel integrated contribution pending exhaustive literature review and replication outside propulsion.')
+          elif development_passes:
+              lines.append('At least one atlas passes matched development controls, but no independent physical confirmation currently supports elevating it beyond a development novelty candidate.')
+          else:
+              lines.append('No candidate cleared the fair five-probe development gate; the current atlas formulation is not supported.')
+          (root/'FINAL_EVIDENCE_LEDGER.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({'scientific_status':scientific_status,'contribution_status':contribution_status,'candidate_count':len(candidates),'external_count':len(external)},sort_keys=True))
+          PY
+      - name: Commit final ledger
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v019/FINAL_EVIDENCE_LEDGER.json .causal-loom-v019/FINAL_EVIDENCE_LEDGER.md
+          if ! git diff --cached --quiet;then git commit -m 'Update v0.19 final tiered evidence ledger';git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;fi
