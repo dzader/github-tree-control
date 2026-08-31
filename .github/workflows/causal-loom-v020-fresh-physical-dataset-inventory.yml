@@ -1,0 +1,68 @@
+name: Causal Loom v0.20 fresh physical dataset metadata inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.github/workflows/causal-loom-v020-fresh-physical-dataset-inventory.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Search Zenodo metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .causal-loom-v020/fresh_dataset_inventory
+          python - <<'PY'
+          import json,re,urllib.parse,urllib.request
+          from pathlib import Path
+          queries=['propeller wind tunnel dataset','propeller aerodynamic performance experimental','UAV propeller thrust torque dataset','low Reynolds propeller experiment']
+          records={}
+          for query in queries:
+              url='https://zenodo.org/api/records?'+urllib.parse.urlencode({'q':query,'size':100,'sort':'mostrecent'})
+              with urllib.request.urlopen(url,timeout=60) as r: payload=json.load(r)
+              for hit in payload.get('hits',{}).get('hits',[]):
+                  rid=str(hit.get('id'))
+                  md=hit.get('metadata',{})
+                  title=str(md.get('title',''))
+                  desc=re.sub('<[^>]+>',' ',str(md.get('description','')))
+                  text=(title+' '+desc+' '+' '.join(md.get('keywords') or [])).lower()
+                  if rid=='20111572': continue
+                  if 'propeller' not in text: continue
+                  files=[]
+                  for f in hit.get('files') or []:
+                      files.append({'key':f.get('key'),'size':f.get('size'),'checksum':f.get('checksum'),'links':{'self':(f.get('links') or {}).get('self')}})
+                  records[rid]={'record_id':rid,'title':title,'doi':md.get('doi'),'publication_date':md.get('publication_date'),'updated':hit.get('updated'),'resource_type':md.get('resource_type'),'keywords':md.get('keywords'),'creators':md.get('creators'),'description_text':desc[:4000],'license':md.get('license'),'files':files,'record_url':(hit.get('links') or {}).get('html'),'matched_queries':sorted(set((records.get(rid) or {}).get('matched_queries',[])+[query]))}
+          ranked=[]
+          for row in records.values():
+              text=(row['title']+' '+row['description_text']).lower()
+              score=0
+              score+=5*('wind tunnel' in text)+4*('experimental' in text or 'experiment' in text)+3*('thrust' in text)+3*('torque' in text)+2*('coefficient' in text)+2*('airspeed' in text)
+              score+=min(len(row['files']),5)
+              row['metadata_relevance_score']=score
+              ranked.append(row)
+          ranked.sort(key=lambda x:(-x['metadata_relevance_score'],x['title']))
+          out={'measurement_values_accessed':False,'search_queries':queries,'candidate_count':len(ranked),'candidates':ranked}
+          Path('.causal-loom-v020/fresh_dataset_inventory/zenodo_candidates.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          Path('.causal-loom-v020/fresh_dataset_inventory/MEASUREMENT_ACCESS_STATUS.txt').write_text('Metadata only. No candidate file was downloaded or opened.\n')
+          print('FRESH_DATASET_CANDIDATES='+json.dumps([{'id':x['record_id'],'title':x['title'],'score':x['metadata_relevance_score'],'files':len(x['files'])} for x in ranked[:12]],sort_keys=True))
+          PY
+      - name: Commit metadata-only inventory
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v020/fresh_dataset_inventory
+          git commit -m 'Inventory untouched physical datasets for next confirmation'
+          git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831
