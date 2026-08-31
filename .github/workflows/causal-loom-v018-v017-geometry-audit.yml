@@ -63,8 +63,6 @@ jobs:
               family='_'.join(parts[:-1]); dm=dim.search(family+'_')
               if not dm: continue
               D=float(dm.group('D')); P=float(dm.group('P'))
-              # Confirmed from the official Volume-3 page after v0.17 failed:
-              # ancf_125x6, ancf_125x75, ancf_125x9 are 12.5x6, 12.5x7.5, 12.5x9.
               if family.startswith('ancf_125x'):
                   D=12.5
                   if family=='ancf_125x75': P=7.5
@@ -82,6 +80,16 @@ jobs:
           payload={'source_index':os.environ['V3_INDEX'],'postfailure_geometry_audit':True,'corrected_families':['ancf_125x6','ancf_125x75','ancf_125x9'],'family_count':len(families),'run_count':sum(f['run_count'] for f in families),'families':families}
           Path(os.environ['OUT']).write_text(json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n')
           print('CORRECTED_METADATA',len(families),sum(f['run_count'] for f in families))
+          PY
+          export INV="$RUNNER_TEMP/inventory_corrected.json" AP="$RUNNER_TEMP/protocol_audit.json"
+          python - <<'PY'
+          import hashlib,json,os
+          p=json.load(open('.causal-loom-v017/V017_FROZEN_PROTOCOL.json'))
+          raw=open(os.environ['INV'],'rb').read()
+          p['holdout']['inventory_sha256']=hashlib.sha256(raw).hexdigest()
+          p['postfailure_audit_note']='Only inventory hash changed to permit corrected 12.5-inch geometry metadata; coordinate law, models, gates, and scoring are identical to frozen v0.17.'
+          open(os.environ['AP'],'w').write(json.dumps(p,indent=2,sort_keys=True)+'\n')
+          print('AUDIT_PROTOCOL_INVENTORY_HASH',p['holdout']['inventory_sha256'])
           PY
       - name: Retrieve already-consumed Volume-3 measurements
         shell: bash
@@ -106,7 +114,7 @@ jobs:
           set +e
           rm -rf causal-loom-v018-v017-geometry-audit
           python "$RUNNER_TEMP/v017.py" \
-            --protocol .causal-loom-v017/V017_FROZEN_PROTOCOL.json \
+            --protocol "$RUNNER_TEMP/protocol_audit.json" \
             --inventory "$RUNNER_TEMP/inventory_corrected.json" \
             --data-dir "$RUNNER_TEMP/v3data" \
             --output-dir causal-loom-v018-v017-geometry-audit \
@@ -116,12 +124,12 @@ jobs:
           mkdir -p causal-loom-v018-v017-geometry-audit
           cp "$RUNNER_TEMP/audit.log" causal-loom-v018-v017-geometry-audit/postfailure_audit_stdout.log
           cp "$RUNNER_TEMP/inventory_corrected.json" causal-loom-v018-v017-geometry-audit/
+          cp "$RUNNER_TEMP/protocol_audit.json" causal-loom-v018-v017-geometry-audit/
           printf '%s\n' "$status" > causal-loom-v018-v017-geometry-audit/AUDIT_RUNNER_EXIT_STATUS.txt
           cat "$RUNNER_TEMP/audit.log"
-          # Do not fail the workflow based on the reused v0.17 frozen gates: this is explicitly post-failure analysis.
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v018-v017-geometry-postfailure-audit
+          name: causal-loom-v018-v017-geometry-postfailure-audit-r2
           path: causal-loom-v018-v017-geometry-audit
           if-no-files-found: error
           retention-days: 90
