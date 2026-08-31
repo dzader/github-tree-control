@@ -1,0 +1,82 @@
+name: Causal Loom v0.21 selected holdout documentation inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json'
+      - '.github/workflows/causal-loom-v021-selected-holdout-metadata.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Fetch record metadata and documentation only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json
+          status=$(python -c 'import json;print(json.load(open(".causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json"))["status"])')
+          test "$status" = selected
+          record=$(python -c 'import json;print(json.load(open(".causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json"))["selected"]["record_id"])')
+          export RECORD_ID="$record"
+          mkdir -p .causal-loom-v021/selected_holdout_metadata "$RUNNER_TEMP/docs"
+          curl --fail --silent --show-error -L "https://zenodo.org/api/records/$record" -o "$RUNNER_TEMP/record.json"
+          python - <<'PY'
+          import hashlib,json,os,re,subprocess,urllib.request,zipfile
+          from pathlib import Path
+          record=json.load(open(Path(os.environ['RUNNER_TEMP'])/'record.json'))
+          out=Path('.causal-loom-v021/selected_holdout_metadata')
+          docs=[];archives=[];file_manifest=[]
+          for file in record.get('files') or []:
+              key=str(file.get('key',''));size=int(file.get('size') or 0);checksum=file.get('checksum');url=(file.get('links') or {}).get('self')
+              suffix=Path(key).suffix.lower();lower=Path(key).name.lower()
+              row={'key':key,'size':size,'checksum':checksum,'url':url,'documentation_opened':False,'archive_members_listed':False}
+              is_doc=any(token in lower for token in ('readme','documentation','description','metadata','info','manual','license')) or suffix in {'.md','.rst'}
+              if is_doc and url and size<=25_000_000:
+                  target=Path(os.environ['RUNNER_TEMP'])/'docs'/Path(key).name
+                  urllib.request.urlretrieve(url,target)
+                  text=''
+                  if suffix in {'.txt','.md','.rst','.csv'}:
+                      text=target.read_text(errors='replace')
+                  elif suffix=='.pdf':
+                      try:
+                          text=subprocess.check_output(['pdftotext',str(target),'-'],stderr=subprocess.DEVNULL,timeout=60).decode('utf-8','replace')
+                      except Exception:text='[PDF documentation retrieved; text extraction unavailable]'
+                  docs.append({'key':key,'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'text':text[:30000]})
+                  row['documentation_opened']=True
+              elif suffix=='.zip' and url and size<=2_000_000_000:
+                  target=Path(os.environ['RUNNER_TEMP'])/'docs'/Path(key).name
+                  urllib.request.urlretrieve(url,target)
+                  with zipfile.ZipFile(target) as z:
+                      members=[{'path':i.filename,'size':i.file_size,'compressed_size':i.compress_size,'crc':i.CRC} for i in z.infolist()]
+                  archives.append({'key':key,'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'archive_bytes':target.stat().st_size,'members':members,'member_contents_read':False})
+                  row['archive_members_listed']=True
+              file_manifest.append(row)
+          md=record.get('metadata',{})
+          payload={'record_id':str(record.get('id')),'title':md.get('title'),'doi':md.get('doi'),'description':re.sub('<[^>]+>',' ',str(md.get('description',''))),'keywords':md.get('keywords'),'creators':md.get('creators'),'license':md.get('license'),'publication_date':md.get('publication_date'),'updated':record.get('updated'),'files':file_manifest,'documentation':docs,'archives':archives,'measurement_values_accessed':False,'policy':'Only documentation-designated files and ZIP central-directory member metadata were opened. Numeric measurement tables were not parsed.'}
+          (out/'METADATA_MANIFEST.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          (out/'MEASUREMENT_ACCESS_STATUS.txt').write_text('False — no numeric measurement table was parsed.\n')
+          print('SELECTED_HOLDOUT_METADATA='+json.dumps({'record_id':payload['record_id'],'title':payload['title'],'files':len(file_manifest),'documents':len(docs),'archives':len(archives),'archive_members':sum(len(a['members']) for a in archives)},sort_keys=True))
+          PY
+      - name: Commit selected holdout metadata manifest
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/selected_holdout_metadata
+          git commit -m 'Inventory selected cross-domain holdout documentation before measurement access'
+          for attempt in 1 2 3 4;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
