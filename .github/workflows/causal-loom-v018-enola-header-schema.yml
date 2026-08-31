@@ -13,7 +13,7 @@ permissions:
 
 env:
   ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
-  FROZEN_PROTOCOL_BLOB_SHA: 45f9857ae9e44543ae3f06d4d6efde58ce881aa4
+  FROZEN_PROTOCOL_BLOB_SHA: c52e9c563cbb38045d9513a20f09d8cd069484d7
 
 jobs:
   schema:
@@ -57,7 +57,6 @@ jobs:
               lh=get(e['loff'],e['loff']+2047);v=struct.unpack('<4s5H3L2H',lh[:30]);nlen=v[9];xlen=v[10];start=e['loff']+30+nlen+xlen
               cb=get(start,start+e['csize']-1)
               raw=cb if e['comp']==0 else zlib.decompress(cb,-15)
-              # Decode member but never serialize/print numerical data rows.
               text=raw.decode('utf-8-sig','replace').splitlines()
               header=[]; first_numeric_line_index=None
               for idx,line in enumerate(text):
