@@ -1,0 +1,1 @@
+Only README files, archive paths, and the general-information workbook were parsed. No performance-result table was opened.

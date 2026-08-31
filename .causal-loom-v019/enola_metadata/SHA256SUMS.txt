@@ -1,0 +1,4 @@
+186f59e037af3e071f6cd8140a0b16ff29e387da847ab5c13542a7bc7963a9cf  .causal-loom-v019/enola_metadata/ARCHIVE_SHA256.txt
+a702ae331f1a57aec3f4a0090b4cc703a4c8e84d19e337adda42b6f0e6453a51  .causal-loom-v019/enola_metadata/GITHUB_RUN_ID.txt
+ebef5b2c95e9d7d27a05662a5e59983eca3f02544e26513e70a2410578310dab  .causal-loom-v019/enola_metadata/MEASUREMENT_ACCESS_STATUS.txt
+08f78d79d6a13780c605c30a2ce67bd4749f4fc43ebfed6dc8bb826709a2e95f  .causal-loom-v019/enola_metadata/metadata_summary.json
