@@ -1,0 +1,185 @@
+name: Causal Loom v0.22 targeted novelty audit
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/FINAL_EVIDENCE_LEDGER.json'
+      - '.causal-loom-v021/FINAL_STATUS.json'
+      - '.github/workflows/causal-loom-v022-targeted-novelty-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Query scholarly metadata and open abstracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .causal-loom-v022/novelty_audit
+          python - <<'PY'
+          import html,json,re,time,urllib.parse,urllib.request
+          from collections import defaultdict
+          from pathlib import Path
+
+          queries={
+            'shape_invariant_models':[
+              'shape invariant model functional data curves shift scale',
+              'functional data curve registration phase amplitude separation',
+              'warped functional regression response curves',
+            ],
+            'tangent_functional_manifolds':[
+              'functional principal components tangent space curve manifold',
+              'principal geodesic analysis functional data curves',
+              'low rank nonlinear manifold response curves',
+            ],
+            'lie_symmetry_system_identification':[
+              'Lie group symmetry system identification dynamical systems',
+              'learned continuous symmetry physical dynamics model',
+              'equivariant system identification latent transformation group',
+            ],
+            'few_shot_meta_system_identification':[
+              'few shot system identification physical systems meta learning',
+              'meta system identification dynamical systems adaptation',
+              'neural process system identification few observations',
+            ],
+            'dimensionless_coordinate_discovery':[
+              'machine learning Buckingham Pi dimensionless groups discovery',
+              'symbolic regression dimensionless variables physical law discovery',
+              'automatic dimensional analysis learned physical coordinates',
+            ],
+            'invariant_causal_mechanisms':[
+              'invariant causal prediction mechanism transfer environments',
+              'causal mechanism transfer learning interventions',
+              'independent causal mechanisms representation learning',
+            ],
+            'nonlinear_mixed_effects_curves':[
+              'nonlinear mixed effects functional response curves individual parameters',
+              'hierarchical nonlinear curve model shared shape random effects',
+              'functional mixed effects model curve alignment',
+            ],
+            'parametric_operator_inference':[
+              'parametric operator inference reduced order model interpolation',
+              'operator inference parameterized dynamical systems transfer',
+              'Koopman operator family parameterized systems identification',
+            ],
+          }
+
+          feature_terms={
+            'projective_quotient':['projective','sign scale','affine nuisance','scale invariant','quotient'],
+            'coordinate_discovery':['coordinate discovery','latent coordinate','dimensionless variable','representation discovery','registration'],
+            'shared_mechanism':['shared mechanism','invariant mechanism','common nonlinear function','shape invariant'],
+            'few_probe_binding':['few shot','few-shot','few observations','sparse observations','calibration'],
+            'intervention_design':['intervention','active learning','experiment design','probe design'],
+            'write_or_realization_factorization':['realization','output map','decoder','random effects','system-specific parameters'],
+            'safe_nested_fallback':['fallback','nested model','safe adaptation','do no harm'],
+            'lie_or_tangent_transport':['Lie','tangent','generator','flow','group action','geodesic'],
+          }
+
+          def openalex_search(query,per_page=25):
+              params={'search':query,'per-page':per_page,'select':'id,doi,title,display_name,publication_year,publication_date,authorships,primary_location,open_access,type,cited_by_count,abstract_inverted_index,concepts'}
+              url='https://api.openalex.org/works?'+urllib.parse.urlencode(params)
+              request=urllib.request.Request(url,headers={'User-Agent':'CausalLoomNoveltyAudit/0.22 (mailto:research@example.com)'})
+              with urllib.request.urlopen(request,timeout=90) as response:return json.load(response).get('results',[])
+
+          def abstract_text(inverted):
+              if not inverted:return ''
+              positions=[]
+              for token,indexes in inverted.items():
+                  for index in indexes:positions.append((index,token))
+              return ' '.join(token for _,token in sorted(positions))
+
+          records={}
+          query_failures=[]
+          for category,items in queries.items():
+              for query in items:
+                  try:results=openalex_search(query)
+                  except Exception as exc:
+                      query_failures.append({'category':category,'query':query,'error':f'{type(exc).__name__}:{exc}'})
+                      continue
+                  for work in results:
+                      key=work.get('doi') or work.get('id') or work.get('title')
+                      if not key:continue
+                      title=work.get('display_name') or work.get('title') or ''
+                      abstract=abstract_text(work.get('abstract_inverted_index'))
+                      authors=[a.get('author',{}).get('display_name') for a in work.get('authorships',[])[:12]]
+                      location=work.get('primary_location') or {}
+                      source=(location.get('source') or {}).get('display_name')
+                      row=records.setdefault(key,{'id':work.get('id'),'doi':work.get('doi'),'title':title,'publication_year':work.get('publication_year'),'publication_date':work.get('publication_date'),'authors':authors,'venue':source,'landing_page_url':location.get('landing_page_url'),'pdf_url':location.get('pdf_url'),'open_access':work.get('open_access'),'type':work.get('type'),'cited_by_count':work.get('cited_by_count'),'abstract':abstract,'matched_categories':[],'matched_queries':[]})
+                      row['matched_categories']=sorted(set(row['matched_categories']+[category]));row['matched_queries']=sorted(set(row['matched_queries']+[query]))
+                  time.sleep(.15)
+
+          exact_feature_hits=[]
+          for row in records.values():
+              text=(row['title']+' '+row['abstract']).lower()
+              matches={feature:any(term.lower() in text for term in terms) for feature,terms in feature_terms.items()}
+              row['feature_matches']=matches
+              row['feature_match_count']=sum(matches.values())
+              if row['feature_match_count']>=4:exact_feature_hits.append(row)
+
+          category_rankings={}
+          for category in queries:
+              subset=[row for row in records.values() if category in row['matched_categories']]
+              subset.sort(key=lambda row:(-row['feature_match_count'],-int(row.get('cited_by_count') or 0),-(row.get('publication_year') or 0),row['title']))
+              category_rankings[category]=subset[:20]
+
+          exact_feature_hits.sort(key=lambda row:(-row['feature_match_count'],-int(row.get('cited_by_count') or 0),row['title']))
+          contribution_features=[
+            'learn an executable residual mechanism as a projective equivalence class',
+            'separate mechanism identity from source binding and output/write realization',
+            'discover or learn a physical coordinate/atlas in which mechanisms become reusable',
+            'bind a new system with a fixed few-probe budget while the mechanism remains frozen',
+            'reuse the executable mechanism for diagnostic intervention design',
+            'use an exact nested mechanism-free or local-polynomial fallback',
+            'validate under frozen independently authored physical datasets, retaining failures',
+          ]
+          assessment={
+            'status':'targeted_metadata_and_abstract_audit_not_exhaustive',
+            'query_count':sum(len(v) for v in queries.values()),
+            'unique_work_count':len(records),
+            'high_overlap_work_count':len(exact_feature_hits),
+            'contribution_features':contribution_features,
+            'preliminary_conclusion':'No first-in-literature claim can be made from metadata alone. The exact integration remains a plausible novelty candidate if no high-overlap work contains all projective quotient, coordinate/atlas discovery, few-probe binding, realization factorization, intervention reuse, and safe nested fallback features.',
+            'required_manual_followup':'Read the full text of the highest-overlap primary papers and search patents before filing or publication.',
+          }
+          payload={'assessment':assessment,'query_failures':query_failures,'queries':queries,'feature_terms':feature_terms,'highest_overlap_works':exact_feature_hits[:40],'category_rankings':category_rankings}
+          out=Path('.causal-loom-v022/novelty_audit')
+          (out/'TARGETED_NOVELTY_AUDIT.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom targeted novelty audit','',f"Unique primary works screened by metadata/abstract: **{len(records)}**",f"Works matching at least four feature families: **{len(exact_feature_hits)}**",'',assessment['preliminary_conclusion'],'','## Exact contribution checklist','']
+          lines.extend(f'- {feature}' for feature in contribution_features)
+          lines += ['','## Highest-overlap primary works','']
+          for row in exact_feature_hits[:25]:
+              lines.append(f"### {row['title']} ({row.get('publication_year')})")
+              lines.append('')
+              lines.append(f"- DOI: `{row.get('doi')}`")
+              lines.append(f"- Venue: {row.get('venue')}")
+              lines.append(f"- Feature matches: {', '.join(k for k,v in row['feature_matches'].items() if v)}")
+              lines.append(f"- Categories: {', '.join(row['matched_categories'])}")
+              lines.append(f"- Abstract excerpt: {row.get('abstract','')[:800]}")
+              lines.append('')
+          lines += ['## Claim boundary','',assessment['required_manual_followup']]
+          (out/'TARGETED_NOVELTY_AUDIT.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({'unique_works':len(records),'high_overlap_works':len(exact_feature_hits),'query_failures':len(query_failures)},sort_keys=True))
+          PY
+      - name: Commit novelty audit with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v022/novelty_audit
+          git commit -m 'Audit closest primary literature for Projective Mechanism Atlases'
+          for attempt in 1 2 3 4 5;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
