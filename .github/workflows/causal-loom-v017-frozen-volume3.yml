@@ -1,0 +1,161 @@
+name: Causal Loom v0.17 frozen UIUC Volume 3 confirmation
+
+on:
+  push:
+    branches:
+      - causal-loom-v017-coordinate-field-20260831
+    paths:
+      - '.github/workflows/causal-loom-v017-frozen-volume3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROTOCOL_BLOB_SHA: bac01f21d27b535bc1e8c44c9cc229c33d658924
+  DEVELOPMENT_BLOB_SHA: a4abe2d4f9e886f03497f01f69ab190cd320bc09
+  RUNNER_PAYLOAD_BLOB_SHA: c36aa99ee8dd6bef32d707974be3134534b3e87d
+  RUNNER_SHA256: ea78369d6d34bd34fbb11caaecc526c8903113ca060b118dff2a9dfc2e7e2d85
+  INVENTORY_SHA256: 5acff77052d8da7cf14587517ba44f37576b1409957cca0967d3b42265ae3d14
+  INDEX_SHA256: 5c5fb34685ccbf65eca1c5745c6c48f1d3d335a8ec5debe604750919936c2f13
+  V3_INDEX: https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  frozen-confirmation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out frozen experiment branch
+        uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v017-coordinate-field-20260831
+
+      - name: Verify frozen scientific files before measurement access
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .causal-loom-v017/V017_FROZEN_PROTOCOL.json)" = "$PROTOCOL_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v017/V017_DEVELOPMENT_EVIDENCE.json)" = "$DEVELOPMENT_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v017/run_v017_frozen.py.gz.b64)" = "$RUNNER_PAYLOAD_BLOB_SHA"
+          base64 --decode --ignore-garbage .causal-loom-v017/run_v017_frozen.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/run_v017_frozen.py"
+          test "$(sha256sum "$RUNNER_TEMP/run_v017_frozen.py" | cut -d' ' -f1)" = "$RUNNER_SHA256"
+          python -m py_compile "$RUNNER_TEMP/run_v017_frozen.py"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deterministic numerical dependency
+        run: pip install numpy==2.1.3
+
+      - name: Self-test executable before measurement access
+        run: python "$RUNNER_TEMP/run_v017_frozen.py" --self-test
+
+      - name: Reconstruct and verify frozen metadata inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L "$V3_INDEX" -o "$RUNNER_TEMP/index.html"
+          test "$(sha256sum "$RUNNER_TEMP/index.html" | cut -d' ' -f1)" = "$INDEX_SHA256"
+          export OUT="$RUNNER_TEMP/inventory.json"
+          python - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          raw=(Path(os.environ['RUNNER_TEMP'])/'index.html').read_bytes(); html=raw.decode('utf-8','replace')
+          hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
+          base='https://m-selig.ae.illinois.edu/props/volume-3/'; dyn=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$',re.I); dim=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)(?:f)?(?:_|$)',re.I)
+          entries=[]
+          for href in hrefs:
+              name=Path(href).name
+              if '_static_' in name.lower() or 'static' in name.lower(): continue
+              m=dyn.match(name)
+              if not m: continue
+              parts=m.group('prefix').split('_')
+              if len(parts)<2: continue
+              family='_'.join(parts[:-1]); dm=dim.search(family+'_')
+              if not dm: continue
+              entries.append({'href':href,'url':urljoin(base,href),'filename':name,'family':family,'diameter_in':float(dm.group('D')),'pitch_in':float(dm.group('P')),'rpm':int(m.group('rpm')),'rank_hash':hashlib.sha256((href+'\0'+name).encode()).hexdigest()})
+          by={}
+          for r in entries: by.setdefault(r['family'],[]).append(r)
+          families=[]
+          for fam,rows in sorted(by.items()):
+              seen=set();uniq=[]
+              for r in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if r['url'] in seen: continue
+                  seen.add(r['url']);uniq.append(r)
+              if len(uniq)<4: continue
+              families.append({'family':fam,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],'run_count':len(uniq),'runs':uniq,'family_rank_hash':hashlib.sha256(('family\0'+fam).encode()).hexdigest()})
+          payload={'source_index':os.environ['V3_INDEX'],'index_sha256':hashlib.sha256(raw).hexdigest(),'contents_read':False,'selection':'dynamic txt hrefs only; filename ends _RPM.txt; family=prefix minus provenance token; >=4 runs','family_count':len(families),'run_count':sum(f['run_count'] for f in families),'families':families}
+          text=json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n';Path(os.environ['OUT']).write_text(text)
+          print('INVENTORY_RECONSTRUCTED',hashlib.sha256(text.encode()).hexdigest(),len(families),sum(f['run_count'] for f in families))
+          PY
+          test "$(sha256sum "$RUNNER_TEMP/inventory.json" | cut -d' ' -f1)" = "$INVENTORY_SHA256"
+
+      - name: Retrieve the 279 frozen holdout measurement files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3data"
+          export INV="$RUNNER_TEMP/inventory.json"
+          python - <<'PY' > "$RUNNER_TEMP/download.tsv"
+          import json,os
+          x=json.load(open(os.environ['INV']))
+          for f in x['families']:
+              for r in f['runs']: print(r['url']+'\t'+r['filename'])
+          PY
+          export DATADIR="$RUNNER_TEMP/v3data"
+          cat "$RUNNER_TEMP/download.tsv" | xargs -P 16 -d '\n' -I{} bash -c '
+            line="$1"; url="${line%%$'"'"'\t'"'"'*}"; name="${line#*$'"'"'\t'"'"'}";
+            curl --fail --silent --show-error -L --retry 3 "$url" -o "$DATADIR/$name";
+            test -s "$DATADIR/$name"
+          ' _ {}
+          test "$(find "$RUNNER_TEMP/v3data" -type f | wc -l)" -eq 279
+          echo HOLDOUT_MEASUREMENTS_RETRIEVED_279
+
+      - name: Execute first and permanent v0.17 holdout evaluation
+        id: evaluate
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v017-frozen-output
+          python "$RUNNER_TEMP/run_v017_frozen.py" \
+            --protocol .causal-loom-v017/V017_FROZEN_PROTOCOL.json \
+            --inventory "$RUNNER_TEMP/inventory.json" \
+            --data-dir "$RUNNER_TEMP/v3data" \
+            --output-dir causal-loom-v017-frozen-output \
+            > "$RUNNER_TEMP/v017_stdout.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v017-frozen-output
+          cp "$RUNNER_TEMP/v017_stdout.log" causal-loom-v017-frozen-output/stdout.log
+          cat "$RUNNER_TEMP/v017_stdout.log"
+          echo "$status" > causal-loom-v017-frozen-output/EXECUTION_EXIT_STATUS.txt
+          cp .causal-loom-v017/V017_FROZEN_PROTOCOL.json causal-loom-v017-frozen-output/
+          cp .causal-loom-v017/V017_DEVELOPMENT_EVIDENCE.json causal-loom-v017-frozen-output/
+          cp "$RUNNER_TEMP/run_v017_frozen.py" causal-loom-v017-frozen-output/
+          cp "$RUNNER_TEMP/inventory.json" causal-loom-v017-frozen-output/holdout_inventory.json
+          printf 'python=' > causal-loom-v017-frozen-output/RUNTIME_ENVIRONMENT.txt
+          python --version >> causal-loom-v017-frozen-output/RUNTIME_ENVIRONMENT.txt 2>&1
+          python -c 'import numpy; print("numpy="+numpy.__version__)' >> causal-loom-v017-frozen-output/RUNTIME_ENVIRONMENT.txt
+          find causal-loom-v017-frozen-output -type f ! -name FILES_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > causal-loom-v017-frozen-output/FILES_SHA256SUMS.txt
+          echo "exit_status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable v0.17 frozen evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v017-uiuc-volume3-frozen-evidence
+          path: causal-loom-v017-frozen-output
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Preserve frozen scientific verdict as workflow conclusion
+        shell: bash
+        run: |
+          status='${{ steps.evaluate.outputs.exit_status }}'
+          test -n "$status"
+          exit "$status"
