@@ -1,5 +1,5 @@
 {
-  "action": "wait",
+  "action": "reserve_new_domain",
   "development_pass": {
     "lie": false,
     "lowrank": false,
@@ -12,6 +12,6 @@
     "lowrank": false,
     "shift": false
   },
-  "reason": "awaiting_matched_development_results",
-  "workflow": null
+  "reason": "all_matched_five_probe_candidates_failed",
+  "workflow": "causal-loom-v021-cross-domain-metadata-inventory.yml"
 }

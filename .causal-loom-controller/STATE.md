@@ -1,11 +1,11 @@
 # Causal Loom research controller
 
-Action: **wait**
-Reason: **awaiting_matched_development_results**
+Action: **reserve_new_domain**
+Reason: **all_matched_five_probe_candidates_failed**
 
 ```json
 {
-  "action": "wait",
+  "action": "reserve_new_domain",
   "development_pass": {
     "lie": false,
     "lowrank": false,
@@ -18,7 +18,7 @@ Reason: **awaiting_matched_development_results**
     "lowrank": false,
     "shift": false
   },
-  "reason": "awaiting_matched_development_results",
-  "workflow": null
+  "reason": "all_matched_five_probe_candidates_failed",
+  "workflow": "causal-loom-v021-cross-domain-metadata-inventory.yml"
 }
 ```
