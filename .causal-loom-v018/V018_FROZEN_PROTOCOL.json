@@ -1,0 +1,102 @@
+{
+  "protocol_id": "v0.18-projective-mechanism-connection-enola-external-1",
+  "claim_boundary": "A pass supports transfer of an invariant projective nonlinear mechanism together with a learned low-dimensional connection on its realization coefficients across operating context, using three probes at one RPM condition and zero probes at target RPM conditions, on an independently collected external wind-tunnel dataset. It does not establish novelty over all LPV methods, uniqueness of the representation, exact aerodynamic theory, broad-domain generality, or general AI scientific discovery.",
+  "freeze": {
+    "scientific_model_controls_metrics_gates_frozen_before_any_ENOLA_result_values": true,
+    "outcome_blind_metadata_already_read": [
+      "ZIP central-directory paths",
+      "dataset and per-propeller README metadata",
+      "GeneralInfo workbook dimensions and availability flags"
+    ],
+    "result_values_read_before_this_freeze": false,
+    "parser_may_be_finalized_from_column_names_and_units_only_after_this_freeze_but_before_numerical_values_are_exposed": true
+  },
+  "source": {
+    "dataset": "ENOLA numerical and experimental propeller database",
+    "zenodo_record": "20111572",
+    "doi": "10.5281/zenodo.20111572",
+    "archive_filename": "Propeller_Database.zip",
+    "archive_md5": "245267e590546f160f3b971d7f8e05fb",
+    "archive_content_length": 223601320,
+    "collector": "CMT-Clean Mobility & Thermofluid institute, Universitat Politecnica de Valencia",
+    "independence": "separately collected from UIUC development data"
+  },
+  "eligible_propellers": [
+    {"id":"AeronautCAM9x5","diameter_m":0.2286,"result_path":"BBDD/Aeronaut/AeronautCAM9x5/results/AeronautCAM9x5_exp.csv"},
+    {"id":"APC15x8","diameter_m":0.3810,"result_path":"BBDD/APC/APC15x8/results/APC15x8_exp.csv"},
+    {"id":"APC19x10","diameter_m":0.4826,"result_path":"BBDD/APC/APC19x10/results/APC19x10_exp.csv"},
+    {"id":"Casalino","diameter_m":0.3000,"result_path":"BBDD/Custom/Casalino/results/Casalino_exp.csv"},
+    {"id":"MS1101","diameter_m":0.2794,"result_path":"BBDD/T-Motor/MS1101/results/MS1101_exp_0deg.csv"},
+    {"id":"XOAR10x6","diameter_m":0.2540,"result_path":"BBDD/XOAR/XOAR_10x6/results/XOAR10x6_exp.csv"},
+    {"id":"XOAR16x12","diameter_m":0.4064,"result_path":"BBDD/XOAR/XOAR_16x12/results/XOAR16x12_exp.csv"},
+    {"id":"XOAR9x7","diameter_m":0.2286,"result_path":"BBDD/XOAR/XOAR_9x7/results/XOAR9x7_exp.csv"}
+  ],
+  "target": {
+    "primary": "CT",
+    "coordinate": "J",
+    "standard_definitions": "J=V/(nD); CT=T/(rho*n^2*D^4) if coefficients are not directly supplied",
+    "fallback_air_density_kg_m3": 1.225
+  },
+  "invariant_mechanism": {
+    "source": "v0.14 pure-J projective mechanism learned only from consumed UIUC development families",
+    "h": "0.9348064400298151*J^2 - 0.3551575983683635*J^3",
+    "coefficients_J2_J3": [0.9348064400298151,-0.3551575983683635],
+    "realization": "CT(J)=a+b*J+s*h(J)"
+  },
+  "projective_mechanism_connection": {
+    "theta": "[a,b,s]",
+    "context_scalar": "c0=ln((RPM_cal/5000)*(D_in/10)^2), D_in=diameter_m/0.0254",
+    "feature_vector": "[1,a,b,s,c0]",
+    "dtheta_dlnRPM_matrix_B_rows_features_cols_da_db_ds": [
+      [-0.00442055,0.01180985,0.06706712],
+      [0.19638009,-0.68845015,1.51746324],
+      [-0.12336685,0.10603511,0.88263718],
+      [0.01985152,-0.34171112,1.08435865],
+      [0.02793310,-0.05083278,0.04891753]
+    ],
+    "transport": "theta_target=theta_cal+ln(RPM_target/RPM_cal)*([1,theta_cal,c0]@B)",
+    "target_context_probes": 0
+  },
+  "calibration_and_contexts": {
+    "rpm_context_construction": "Cluster parsed rows by actual RPM after sorting; a new context starts when the next RPM exceeds the current cluster median by more than 8 percent. Discard clusters with fewer than 5 valid aerodynamic rows or J span below 0.10.",
+    "minimum_context_count": 3,
+    "calibration_context": "lower median valid RPM context",
+    "calibration_probe_count": 3,
+    "probe_quantiles_in_J": [0.2,0.5,0.8],
+    "probe_rule": "nearest distinct calibration row to each quantile target without replacement",
+    "target_contexts": "all other valid RPM contexts",
+    "common_support": "score a target row only if its J lies inside the closed min/max J support of the three calibration probes; require at least 10 scored target rows per propeller"
+  },
+  "controls": {
+    "static_plain_J": "Fit [a,b,s] on the identical three calibration probes in plain J and reuse theta unchanged at all target RPM contexts.",
+    "v014_corrected_coordinate": "R=(RPM/5000)*(D_in/10)^2; xi=J*R^(-0.1); h_corr(xi)=0.9373292565084214*xi^2-0.3484449237589354*xi^3. Fit [a,b,s] on the same three calibration rows evaluated at calibration xi and reuse those coefficients at target xi.",
+    "fairness": "All primary models receive exactly the same three calibration outcome values and no target-context outcome values."
+  },
+  "metrics": {
+    "propeller_nrmse": "For each model, concatenate scored target-context CT predictions; RMSE divided by max(observed CT)-min(observed CT), invalid if CT range <0.01.",
+    "paired_ratio": "Per-propeller connection NRMSE divided by control NRMSE; summarize median, geometric mean, and win fraction.",
+    "catastrophic": "connection propeller NRMSE >0.5 or nonfinite",
+    "primary_analysis_unit": "propeller"
+  },
+  "primary_gates": {
+    "minimum_valid_propellers": 6,
+    "zero_catastrophic_propellers": true,
+    "median_connection_nrmse_lte": 0.12,
+    "connection_vs_static_plain_J_median_ratio_lte": 0.80,
+    "connection_vs_static_plain_J_win_fraction_gte": 0.70,
+    "connection_vs_v014_corrected_coordinate_median_ratio_lte": 0.90,
+    "connection_vs_v014_corrected_coordinate_win_fraction_gte": 0.625
+  },
+  "strong_diagnostics": {
+    "connection_vs_v014_corrected_coordinate_geometric_mean_ratio_lte": 0.95,
+    "minimum_propellers_where_all_three_models_are_finite": 6
+  },
+  "invalidity_rules": [
+    "required aerodynamic columns cannot be parsed under the frozen schema",
+    "fewer than 3 valid RPM contexts",
+    "calibration design matrix is singular or condition number exceeds 1e8",
+    "fewer than 10 target rows on common calibration-probe J support",
+    "target CT range below 0.01"
+  ],
+  "runtime": {"python":"3.11","numpy":"2.1.3"}
+}
