@@ -1,0 +1,113 @@
+name: Causal Loom v0.21 design metadata-only cross-domain protocol
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json'
+      - '.causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json'
+      - '.github/workflows/causal-loom-v021-design-premeasurement-protocol.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  design:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Infer family-level inventory from metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json
+          python - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          selected=json.load(open('.causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json'))['selected']
+          manifest=json.load(open('.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json'))
+          domains=selected.get('domains') or []
+          domain=domains[0] if domains else 'unknown'
+          paths=[]
+          for archive in manifest.get('archives',[]):
+              for member in archive.get('members',[]):
+                  p=member['path']
+                  if not p.endswith('/'):paths.append({'container':archive['key'],'path':p,'size':member.get('size'),'crc':member.get('crc')})
+          if not paths:
+              for f in manifest.get('files',[]):
+                  if not f.get('documentation_opened'):
+                      paths.append({'container':None,'path':f['key'],'size':f.get('size'),'checksum':f.get('checksum')})
+          numeric_ext={'.csv','.xlsx','.xls','.xlsm','.mat','.h5','.hdf5','.txt','.dat','.tsv','.json','.parquet'}
+          excluded=('readme','license','metadata','description','manual','generalinfo','general_info','summary')
+          candidates=[]
+          for row in paths:
+              p=Path(row['path']);lower=p.name.lower()
+              if p.suffix.lower() not in numeric_ext or any(token in lower for token in excluded):continue
+              x=dict(row);x['extension']=p.suffix.lower();candidates.append(x)
+          def family_key(path):
+              p=Path(path);parts=[x for x in p.parts if x not in ('.','..')]
+              stem=p.stem
+              patterns={
+                'photovoltaic':[r'(?:module|panel|device|sample|cell)[-_ ]?([a-z0-9]+)',r'([a-z]+[-_]?\d+)',r'(\d+w(?:p)?)'],
+                'battery':[r'(?:cell|battery|bat)[-_ ]?([a-z0-9]+)',r'(?:b|c)[-_]?(\d{1,4})',r'([a-z]+[-_]?\d+)'],
+                'fuel_cell':[r'(?:stack|cell|sample|run)[-_ ]?([a-z0-9]+)',r'([a-z]+[-_]?\d+)'],
+                'materials':[r'(?:specimen|sample|coupon|material)[-_ ]?([a-z0-9]+)',r'([a-z]+[-_]?\d+)'],
+                'aerodynamics':[r'(?:airfoil|foil|model)[-_ ]?([a-z0-9-]+)',r'([a-z]+\d{3,5})'],
+              }.get(domain,[r'([a-z]+[-_]?\d+)'])
+              text='/'.join(parts).lower()
+              for pattern in patterns:
+                  m=re.search(pattern,text)
+                  if m:return f'{domain}:{m.group(1)}'
+              # Parent directory is a valid metadata-level family only if more specific than archive root.
+              if len(parts)>=2 and parts[-2].lower() not in ('data','dataset','raw','results','measurements'):
+                  return f'{domain}:{parts[-2].lower()}'
+              return f'{domain}:file:{stem.lower()}'
+          by={}
+          for row in candidates:
+              key=family_key(row['path']);row['family_key']=key;by.setdefault(key,[]).append(row)
+          families=[]
+          for key,rows in sorted(by.items()):
+              h=int(hashlib.sha256(('cross-domain-v021\0'+key).encode()).hexdigest()[:16],16)%100
+              split='development' if h<60 else ('validation' if h<80 else 'confirmation')
+              families.append({'family_key':key,'split':split,'file_count':len(rows),'files':rows,'rank_hash':hashlib.sha256(key.encode()).hexdigest()})
+          counts={split:sum(f['split']==split for f in families) for split in ('development','validation','confirmation')}
+          blocked=[]
+          if len(families)<6:blocked.append('fewer_than_six_metadata_identifiable_families')
+          if counts['development']<3:blocked.append('fewer_than_three_development_families')
+          if counts['confirmation']<2:blocked.append('fewer_than_two_confirmation_families')
+          if not candidates:blocked.append('no_metadata_identifiable_numeric_files')
+          parser_expectations={
+            'photovoltaic':{'independent_variable_synonyms':['voltage','v','voltage_v'],'output_synonyms':['current','i','current_a','power'],'context_synonyms':['irradiance','temperature'],'mechanism_task':'I-V or P-V response curve'},
+            'battery':{'independent_variable_synonyms':['capacity','time','soc'],'output_synonyms':['voltage','temperature'],'context_synonyms':['cycle','temperature','current','c-rate'],'mechanism_task':'discharge response curve'},
+            'fuel_cell':{'independent_variable_synonyms':['current','current_density'],'output_synonyms':['voltage','power'],'context_synonyms':['temperature','pressure','humidity'],'mechanism_task':'polarization curve'},
+            'materials':{'independent_variable_synonyms':['strain','displacement'],'output_synonyms':['stress','force'],'context_synonyms':['temperature','rate','specimen'],'mechanism_task':'constitutive response curve'},
+            'aerodynamics':{'independent_variable_synonyms':['angle_of_attack','alpha'],'output_synonyms':['cl','cd','cm'],'context_synonyms':['reynolds','mach'],'mechanism_task':'aerodynamic polar'},
+          }.get(domain,{})
+          protocol={'protocol_id':'causal-loom-v021-cross-domain-metadata-split-1','status':'blocked' if blocked else 'ready_for_development_access','domain':domain,'source_record_id':manifest.get('record_id'),'source_title':manifest.get('title'),'measurement_values_accessed':False,'selection_sha256':hashlib.sha256(Path('.causal-loom-v021/selected_holdout/SELECTED_HOLDOUT.json').read_bytes()).hexdigest(),'metadata_manifest_sha256':hashlib.sha256(Path('.causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json').read_bytes()).hexdigest(),'family_split_method':'SHA-256 of metadata-only family key with fixed 60/20/20 thresholds','split_counts':counts,'families':families,'parser_expectations':parser_expectations,'blocked_reasons':blocked,'integrity_rule':'Confirmation-family measurement files may not be extracted or parsed until the algorithm, development/validation result, parser, probes, metrics, controls, and gates are frozen.'}
+          out=Path('.causal-loom-v021/premeasurement_protocol');out.mkdir(parents=True,exist_ok=True)
+          (out/'PREMEASUREMENT_PROTOCOL.json').write_text(json.dumps(protocol,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom v0.21 premeasurement protocol','',f"Status: **{protocol['status']}**",f"Domain: **{domain}**",f"Source: **{manifest.get('title')}**",'',f"Families: {len(families)} — development {counts['development']}, validation {counts['validation']}, confirmation {counts['confirmation']}",'']
+          if blocked:
+              lines.append('Blocked reasons:')
+              lines.extend(f'- {reason}' for reason in blocked)
+          else:
+              lines.append('The family split is frozen from file and directory metadata. Confirmation files remain unopened.')
+          (out/'PREMEASUREMENT_PROTOCOL.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({'status':protocol['status'],'domain':domain,'families':len(families),'split_counts':counts,'blocked_reasons':blocked},sort_keys=True))
+          PY
+      - name: Commit protocol or explicit refusal
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/premeasurement_protocol
+          git commit -m 'Freeze cross-domain family inventory before measurement access'
+          for attempt in 1 2 3 4;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
