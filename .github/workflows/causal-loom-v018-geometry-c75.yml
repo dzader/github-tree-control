@@ -1,0 +1,89 @@
+name: Causal Loom v0.18 consumed UIUC c75 geometry bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v018-local-reynolds-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-geometry-c75.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UIUC_COMMIT: e95db20206f7e89fe6d639ce030e887ec2ce7277
+
+jobs:
+  geometry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v018-local-reynolds-20260831
+      - name: Extract c/R at 75 percent radius from public geometry files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet https://github.com/pfreitas97/Parser_UIUC_AeroData.git "$RUNNER_TEMP/uiuc"
+          git -C "$RUNNER_TEMP/uiuc" checkout --quiet --detach "$UIUC_COMMIT"
+          export UIUC="$RUNNER_TEMP/uiuc" OUT="$RUNNER_TEMP/v018-geometry"
+          mkdir -p "$OUT"
+          python - <<'PY'
+          import csv,hashlib,json,os,re
+          from pathlib import Path
+          import numpy as np
+          root=Path(os.environ['UIUC']); out=Path(os.environ['OUT'])
+          rows=[]
+          dim_re=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)_')
+          for folder in ['Propeller_Data_V1','Propeller_Data_V2']:
+              for p in sorted((root/folder).glob('*geom*.txt')):
+                  name=p.name
+                  parts=name.split('_')
+                  if len(parts)<3: continue
+                  family='_'.join(parts[:2])
+                  dm=dim_re.search('_'+parts[1]+'_')
+                  if not dm: continue
+                  try:
+                      arr=np.genfromtxt(p,names=True,dtype=float,encoding=None)
+                      names=list(arr.dtype.names or [])
+                      # genfromtxt sanitizes r/R,c/R headers variably; safest fallback to plain numeric.
+                      raw=np.loadtxt(p,skiprows=1)
+                      if raw.ndim==1: raw=raw.reshape(1,-1)
+                      rr=raw[:,0]; cr=raw[:,1]
+                      m=np.isfinite(rr)&np.isfinite(cr)
+                      rr=rr[m]; cr=cr[m]
+                      if len(rr)<2: continue
+                      order=np.argsort(rr);rr=rr[order];cr=cr[order]
+                      cR75=float(np.interp(0.75,rr,cr))
+                  except Exception:
+                      continue
+                  D=float(dm.group('D')); P=float(dm.group('P'))
+                  rows.append({
+                    'family':family,'folder':folder,'geom_path':str(p.relative_to(root)),
+                    'geom_blob_sha':hashlib.sha1((f"blob {p.stat().st_size}\0").encode()+p.read_bytes()).hexdigest(),
+                    'diameter_in':D,'pitch_in':P,'cR75':cR75,
+                    'c75_in':cR75*(D/2.0),
+                    'tip_to_c75_ratio':(D/2.0)/(cR75*(D/2.0)) if cR75>0 else None,
+                  })
+          # Keep one deterministic geometry per family; most are unique.
+          by={}
+          for r in rows: by.setdefault(r['family'],[]).append(r)
+          final=[]
+          for fam,rs in sorted(by.items()):
+              final.append(sorted(rs,key=lambda x:(x['geom_path'],x['geom_blob_sha']))[0])
+          with (out/'geometry_c75.csv').open('w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=list(final[0]));w.writeheader();w.writerows(final)
+          payload={'source_repo':'pfreitas97/Parser_UIUC_AeroData','commit':os.environ['UIUC_COMMIT'],'family_count':len(final),'rows':final}
+          text=json.dumps(payload,indent=2,sort_keys=True)+'\n';(out/'geometry_c75.json').write_text(text)
+          (out/'SHA256SUMS.txt').write_text(hashlib.sha256((out/'geometry_c75.csv').read_bytes()).hexdigest()+'  geometry_c75.csv\n'+hashlib.sha256(text.encode()).hexdigest()+'  geometry_c75.json\n')
+          print('GEOMETRY_FAMILIES',len(final))
+          print('CR75_RANGE',min(r['cR75'] for r in final),max(r['cR75'] for r in final))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-consumed-uiuc-c75-geometry
+          path: ${{ runner.temp }}/v018-geometry
+          if-no-files-found: error
+          retention-days: 90
