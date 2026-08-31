@@ -1,0 +1,77 @@
+name: Causal Loom v0.18 ENOLA outcome-blind metadata inventory
+
+on:
+  push:
+    branches:
+      - causal-loom-v018-local-reynolds-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-enola-metadata.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+  ENOLA_MD5: 245267e590546f160f3b971d7f8e05fb
+
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v018-local-reynolds-20260831
+      - name: Download exact public archive without opening result tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 3 "$ENOLA_URL" -o "$RUNNER_TEMP/enola.zip"
+          test "$(md5sum "$RUNNER_TEMP/enola.zip" | cut -d' ' -f1)" = "$ENOLA_MD5"
+          echo ARCHIVE_VERIFIED
+      - name: Build path-only inventory and extract metadata documents only
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/v018-enola-metadata"; mkdir -p "$OUT/readmes"
+          zipinfo -1 "$RUNNER_TEMP/enola.zip" > "$OUT/archive_paths.txt"
+          export OUT
+          python - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          out=Path(os.environ['OUT']); paths=[x.strip() for x in (out/'archive_paths.txt').read_text().splitlines() if x.strip()]
+          top=sorted({p.split('/')[0] for p in paths if '/' in p})
+          # classify by path names only; no result-file bytes are read.
+          info={
+            'zenodo_record':'20111572','archive_md5':os.environ['ENOLA_MD5'],
+            'path_count':len(paths),'top_level':top,
+            'paths':paths,
+            'read_result_contents':False,
+            'metadata_selection':'Only filenames plus GeneralInfo and README metadata documents are extracted before protocol freeze.'
+          }
+          text=json.dumps(info,indent=2,sort_keys=True)+'\n';(out/'inventory.json').write_text(text)
+          (out/'INVENTORY_SHA256.txt').write_text(hashlib.sha256(text.encode()).hexdigest()+'  inventory.json\n')
+          print('PATH_COUNT',len(paths),'TOP',top)
+          # Print candidate experimental directories from names only.
+          cand=sorted({p.rsplit('/',1)[0] for p in paths if re.search(r'experiment|wind|tunnel|result',p,re.I)})
+          print('CANDIDATE_DIRS',json.dumps(cand[:100]))
+          PY
+          # Extract only files whose names are clearly metadata, never numerical result tables.
+          while IFS= read -r p; do
+            base="$(basename "$p")"
+            case "$base" in
+              README|README.*|Readme|Readme.*|readme|readme.*|GeneralInfo.xlsx|GeneralInfo.xls|GeneralInfo.csv)
+                mkdir -p "$OUT/readmes/$(dirname "$p")"
+                unzip -p "$RUNNER_TEMP/enola.zip" "$p" > "$OUT/readmes/$p"
+                ;;
+            esac
+          done < "$OUT/archive_paths.txt"
+          find "$OUT/readmes" -type f -print | sort > "$OUT/extracted_metadata_files.txt"
+          echo METADATA_FILES_EXTRACTED $(wc -l < "$OUT/extracted_metadata_files.txt")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-enola-outcome-blind-metadata
+          path: ${{ runner.temp }}/v018-enola-metadata
+          if-no-files-found: error
+          retention-days: 90
