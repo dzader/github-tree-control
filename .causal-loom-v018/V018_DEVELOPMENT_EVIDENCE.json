@@ -1,0 +1,63 @@
+{
+  "protocol_stage": "v0.18-development-before-ENOLA-outcome-access",
+  "concept": "Projective Mechanism Connection: keep one invariant nonlinear mechanism h(J), factor each context-specific realization as theta=(a,b,s) in f(J)=a+bJ+s*h(J), and learn a low-complexity connection describing dtheta/dlogRPM from theta and an independently observable operating-context scalar.",
+  "parent_reinterpretation": {
+    "v014_corrected_h": [0.9373292565084214, -0.3484449237589354],
+    "v014_plain_J_h": [0.9348064400298151, -0.3551575983683635],
+    "projective_direction_correlation": 0.9999742876983018,
+    "note": "The nonlinear mechanism direction learned in corrected coordinate and plain J was effectively identical. The large raw curve-collapse advantage of the coordinate warp shrank to about 4.5% after affine output rebinding, indicating much of the apparent context drift lived in realization/write coefficients rather than mechanism identity."
+  },
+  "mechanism": {
+    "coordinate": "J",
+    "h": "0.9348064400298151*J^2 - 0.3551575983683635*J^3",
+    "realization": "CT(J)=a+b*J+s*h(J)",
+    "median_full_run_fit_nrmse": 0.006850079558363338,
+    "full_run_fit_nrmse_p90": 0.02126274,
+    "full_run_fit_nrmse_p95": 0.0288026
+  },
+  "connection": {
+    "context_scalar": "c0=ln((RPM/5000)*(D_in/10)^2)",
+    "feature_vector": "x=[1,a,b,s,c0]",
+    "dynamics": "dtheta/dlnRPM = x @ B",
+    "B_rows_features_1_a_b_s_c0_cols_da_db_ds": [
+      [-0.00442055, 0.01180985, 0.06706712],
+      [0.19638009, -0.68845015, 1.51746324],
+      [-0.12336685, 0.10603511, 0.88263718],
+      [0.01985152, -0.34171112, 1.08435865],
+      [0.0279331, -0.05083278, 0.04891753]
+    ],
+    "prediction": "Bind theta from exactly three input-selected probes on one calibration RPM run. For target RPM rt, theta_t=theta_cal+ln(rt/r_cal)*([1,theta_cal,c0]@B). No target-RPM probes are used."
+  },
+  "development_data": {
+    "source": "139 consumed UIUC V1/V2 development families from v0.14",
+    "status": "development only; all measurements were already consumed before v0.18",
+    "calibration_rule": "lower median distinct RPM run",
+    "probe_quantiles_in_J": [0.2,0.5,0.8]
+  },
+  "twenty_family_disjoint_partition_stability": {
+    "connection_with_context_vs_v014_corrected_coordinate": {
+      "median_error_ratio_mean": 0.7684673903009084,
+      "median_error_ratio_std": 0.01517071950086486,
+      "median_error_ratio_min": 0.742772913136349,
+      "median_error_ratio_max": 0.8009796984023213,
+      "geometric_mean_error_ratio_mean": 0.7752541292241409,
+      "win_fraction_mean": 0.7246376811594202,
+      "win_fraction_std": 0.01924405158130108,
+      "median_connection_nrmse_mean": 0.04042867695299733,
+      "median_corrected_coordinate_nrmse": 0.049849600843150606
+    },
+    "connection_without_context_vs_v014_corrected_coordinate": {
+      "median_error_ratio_mean": 0.8854839147274449,
+      "median_error_ratio_std": 0.021190846810514096,
+      "win_fraction_mean": 0.6195652173913044,
+      "geometric_mean_error_ratio_mean": 0.8834815904728819
+    },
+    "interpretation": "The context-conditioned realization connection consistently outperformed the scalar coordinate warp across 20 deterministic family-disjoint partitions."
+  },
+  "negative_controls_and_discarded_hypotheses": {
+    "local_c75_reynolds_proxy": "rejected in development: adding c/R at 75% radius to the crude D^2 scale worsened best-exponent relation on 83 geometry-matched families (correlation magnitude fell from about 0.57 to 0.38 and residual error increased)",
+    "nonlinear_coordinate_field": "v0.17 frozen failure preserved; corrected geometry audit did not rescue it",
+    "higher_order_connection": "second- and third-order polynomial-in-delta-logRPM transitions were worse than the first-order affine connection in development"
+  },
+  "claim_boundary": "This is development evidence only. A clean external confirmation must use a separately collected dataset and must freeze the mechanism, B matrix, probe rule, parsers, controls, metrics, and gates before reading target performance outcomes."
+}
