@@ -1,0 +1,80 @@
+{
+  "claim_boundary": "A pass supports a low-complexity coordinate field: the effective input-coordinate exponent varies smoothly with a Reynolds-like operating coordinate, and the integrated field improves cross-RPM mechanism collapse and few-probe transfer on untouched propeller families. It does not establish exact Reynolds-number theory, uniqueness of the coordinate, cross-domain generality, or general AI scientific discovery.",
+  "collapse": {
+    "metric": "For each RPM-run pair and coordinate, symmetrically interpolate CT and CP on overlapping coordinate support; normalize RMSE by pooled CT/CP ranges floored at 0.01; combine CT/CP by geometric mean; family score is median pair error.",
+    "minimum_overlap_points": 5
+  },
+  "coordinate_field": {
+    "R": "(RPM/5000)*(D_in/10)^2",
+    "canonical_control": "z_J = J",
+    "effective_local_exponent": "b_eff(r)=-1.12-0.125*r",
+    "fixed_control": "z_fixed = J * R^(-0.1)",
+    "integrated_coordinate": "z = J * exp(-0.12*r - 0.0625*r^2)",
+    "interpretation": "The field is the integral of the learned local exponent law. Multiplicative coordinate constants are gauge and omitted.",
+    "r": "ln(R)"
+  },
+  "development": {
+    "evidence_git_blob_sha": "a4abe2d4f9e886f03497f01f69ab190cd320bc09",
+    "five_fold_note": "linear b_eff(log R) coefficient estimates stable across family-disjoint folds; quadratic extension gave negligible improvement",
+    "sources": "137 consumed UIUC V1/V2 development families plus 16 UIUC Volume4 families consumed only after v0.16 failure",
+    "volume4_postfailure_validation": "rounded field vs fixed gamma -0.1 collapse median ratio 0.765780, win 0.875; vs plain J ratio 0.598880, win 1.0"
+  },
+  "frozen_before_holdout_measurement_access": true,
+  "holdout": {
+    "family_count": 40,
+    "index_sha256": "5c5fb34685ccbf65eca1c5745c6c48f1d3d335a8ec5debe604750919936c2f13",
+    "index_url": "https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html",
+    "inventory_sha256": "5acff77052d8da7cf14587517ba44f37576b1409957cca0967d3b42265ae3d14",
+    "measurement_contents_read_before_freeze": false,
+    "prior_brand_exposure_note": "One Aero-Naut dynamic file from an older UIUC volume had been inspected earlier for file-format validation; none of these Volume-3 measurement files were opened before this freeze.",
+    "run_count": 279,
+    "source": "UIUC Propeller Database Volume 3 Version 1 (2020-08-20), Aero-Naut CAM folding propellers"
+  },
+  "oracle_global_gamma_scan": [
+    -0.35,
+    0.05,
+    0.01
+  ],
+  "primary_gates": {
+    "catastrophic_transfer_joint_nrmse_gt": 0.5,
+    "collapse_field_vs_J_ratio_lte": 0.75,
+    "collapse_field_vs_J_win_fraction_gte": 0.75,
+    "collapse_field_vs_fixed_ratio_lte": 0.95,
+    "collapse_field_vs_fixed_win_fraction_gte": 0.6,
+    "median_field_collapse_lte": 0.12,
+    "median_field_transfer_joint_nrmse_lte": 0.13,
+    "minimum_valid_families": 36,
+    "transfer_field_vs_J_ratio_lte": 0.85,
+    "transfer_field_vs_J_win_fraction_gte": 0.7,
+    "transfer_field_vs_fixed_ratio_lte": 0.98,
+    "transfer_field_vs_fixed_win_fraction_gte": 0.6
+  },
+  "protocol_id": "v0.17-projective-coordinate-field-uiuc-volume3-1",
+  "runtime": {
+    "numpy": "2.1.3",
+    "python": "3.11"
+  },
+  "scoring": {
+    "cp_range_floor": 0.01,
+    "ct_range_floor": 0.01
+  },
+  "strong_diagnostic": {
+    "posthoc_global_constant_gamma_oracle": "After holdout reveal only, scan one globally shared constant gamma. The frozen nonlinear field passes this diagnostic only if its median collapse is no worse than the best posthoc constant-gamma model."
+  },
+  "transfer": {
+    "calibration_run": "lower median run after metadata RPM sort",
+    "common_support": "score only rows simultaneously inside field, fixed-control, and J-control calibration support",
+    "confirmatory_runs": "all non-calibration RPM runs",
+    "fit": "fit CT and CP separately with degree-3 Chebyshev on exactly five input-selected calibration probes",
+    "minimum_scored_points_per_family": 10,
+    "model_degree": 3,
+    "probe_count": 5,
+    "probe_quantiles_in_airspeed": [
+      0.1,
+      0.3,
+      0.5,
+      0.7,
+      0.9
+    ]
+  }
+}
