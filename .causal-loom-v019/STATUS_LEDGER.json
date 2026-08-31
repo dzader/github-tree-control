@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "gm_error": 0.0422370291277813,
+      "gm_ratio": 1.0347931726439739,
+      "key": "transport_shift",
+      "label": "Shared transport-shift atlas",
+      "pass": false,
+      "summary_path": ".causal-loom-v019/development_result/development_summary.json",
+      "win": 0.3,
+      "worst": 3.09612989516242
+    }
+  ],
+  "frozen_primary_pass": null,
+  "selected": null
+}
