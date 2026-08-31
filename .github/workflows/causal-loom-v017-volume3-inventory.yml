@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  V3_INDEX: https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html
+
 jobs:
   inventory:
     runs-on: ubuntu-24.04
@@ -23,14 +26,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          INDEX='https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html'
-          curl --fail --silent --show-error -L "$INDEX" -o "$RUNNER_TEMP/index.html"
+          curl --fail --silent --show-error -L "$V3_INDEX" -o "$RUNNER_TEMP/index.html"
           python - <<'PY'
           import hashlib,json,os,re
           from pathlib import Path
           from urllib.parse import urljoin
 
           root=Path(os.environ['RUNNER_TEMP'])
+          index=os.environ['V3_INDEX']
           raw=(root/'index.html').read_bytes()
           html=raw.decode('utf-8','replace')
           hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
@@ -52,7 +55,7 @@ jobs:
               dm=dim.search(family+'_')
               if not dm:
                   continue
-              row={
+              entries.append({
                   'href':href,
                   'url':urljoin(base,href),
                   'filename':name,
@@ -61,14 +64,12 @@ jobs:
                   'pitch_in':float(dm.group('P')),
                   'rpm':int(m.group('rpm')),
                   'rank_hash':hashlib.sha256((href+'\0'+name).encode()).hexdigest(),
-              }
-              entries.append(row)
+              })
           by={}
           for r in entries:
               by.setdefault(r['family'],[]).append(r)
           families=[]
           for fam,rows in sorted(by.items()):
-              # exact href dedupe only; retain duplicate/near-duplicate RPM experiments.
               seen=set(); uniq=[]
               for r in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
                   if r['url'] in seen: continue
@@ -80,7 +81,7 @@ jobs:
                   'family_rank_hash':hashlib.sha256(('family\0'+fam).encode()).hexdigest(),
               })
           payload={
-              'source_index':INDEX,
+              'source_index':index,
               'index_sha256':hashlib.sha256(raw).hexdigest(),
               'contents_read':False,
               'selection':'dynamic txt hrefs only; filename ends _RPM.txt; family=prefix minus provenance token; >=4 runs',
