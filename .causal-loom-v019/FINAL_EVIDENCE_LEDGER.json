@@ -1,0 +1,19 @@
+{
+  "candidates": [
+    {
+      "development_pass": false,
+      "family_count": 40,
+      "geometric_mean_error": 0.0422370291277813,
+      "gm_ratio_vs_fixed": 1.0347931726439739,
+      "key": "transport_shift",
+      "label": "Shared transport-shift atlas",
+      "source_path": ".causal-loom-v019/development_result/development_summary.json",
+      "win_fraction_vs_fixed": 0.3,
+      "worst_ratio_vs_fixed": 3.09612989516242
+    }
+  ],
+  "contribution_status": "hypothesis_not_supported_at_required_budget",
+  "external_confirmations": [],
+  "fresh_holdout_inventory": null,
+  "scientific_status": "no_five_probe_candidate_passed"
+}
