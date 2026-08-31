@@ -1,0 +1,74 @@
+name: Causal Loom v0.19 comparable candidate status ledger
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/development_result/**'
+      - '.causal-loom-v019/lowrank_v2_development_result/**'
+      - '.causal-loom-v019/frozen_result/**'
+      - '.causal-loom-v019/freeze_refused/**'
+      - '.github/workflows/causal-loom-v019-status-ledger.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ledger:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Build comparable status ledger
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.causal-loom-v019')
+          candidates=[]
+          for key,label,path in [
+            ('transport_shift','Shared transport-shift atlas',root/'development_result/development_summary.json'),
+            ('lowrank_tangent','Low-rank tangent atlas',root/'lowrank_v2_development_result/development_summary.json'),
+          ]:
+              if not path.exists(): continue
+              x=json.load(open(path));m=x['methods']['safe_atlas'];g=x['development_gate']
+              candidates.append({'key':key,'label':label,'pass':bool(g['pass']),'gm_ratio':m['geometric_mean_ratio_vs_fixed'],'win':m['win_fraction_vs_fixed'],'worst':m['worst_ratio_vs_fixed'],'gm_error':m['geometric_mean_joint'],'summary_path':str(path)})
+          eligible=[x for x in candidates if x['pass']]
+          selected=min(eligible,key=lambda x:(x['gm_ratio'],x['gm_error'])) if eligible else None
+          frozen=None
+          fp=root/'frozen_result/results.json'
+          if fp.exists(): frozen=json.load(open(fp))
+          lines=['# Causal Loom v0.19 status ledger','', 'All development candidates below use exactly five output-blind probes and the same family-disjoint folds.','']
+          if candidates:
+              lines += ['| Candidate | Development pass | GM ratio vs fixed cubic | Win fraction | Worst ratio |','|---|---:|---:|---:|---:|']
+              for x in candidates: lines.append(f"| {x['label']} | {'PASS' if x['pass'] else 'FAIL'} | {x['gm_ratio']:.6f} | {x['win']:.3f} | {x['worst']:.3f} |")
+          else: lines.append('Development evidence has not been captured yet.')
+          lines += ['',f"Selected eligible candidate: **{selected['label'] if selected else 'none'}**",'']
+          if frozen is not None:
+              lines.append(f"Frozen ENOLA primary verdict: **{'PASS' if frozen['primary_pass'] else 'FAIL'}**")
+              lines.append('')
+              lines.append('```json')
+              lines.append(json.dumps({'summary':frozen.get('summary'),'gates':frozen.get('gates')},indent=2,sort_keys=True))
+              lines.append('```')
+          elif (root/'frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt').exists():
+              lines.append('The frozen ENOLA package exists; the first permanent evaluation is running or awaiting capture.')
+          elif (root/'freeze_refused/status.json').exists():
+              lines.append('ENOLA measurement access was refused because the fair development gate failed.')
+          else:
+              lines.append('No ENOLA performance table has been opened.')
+          payload={'candidates':candidates,'selected':selected,'frozen_primary_pass':None if frozen is None else frozen['primary_pass']}
+          (root/'STATUS_LEDGER.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          (root/'CURRENT_STATUS.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps(payload,sort_keys=True))
+          PY
+      - name: Commit status ledger
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v019/STATUS_LEDGER.json .causal-loom-v019/CURRENT_STATUS.md
+          if ! git diff --cached --quiet;then git commit -m 'Update v0.19 comparable candidate status ledger';git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;fi
