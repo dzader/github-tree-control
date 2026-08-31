@@ -1,0 +1,45 @@
+name: Causal Loom v0.21 NASA battery archive bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v021-nasa-battery-bridge-20260831
+    paths:
+      - '.github/workflows/causal-loom-v021-nasa-archive-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v021-nasa-battery-bridge-20260831
+      - name: Retrieve immutable NASA battery archive without inspecting members
+        shell: bash
+        env:
+          NASA_URL: https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/causal-loom-v021-nasa-archive"
+          mkdir -p "$OUT"
+          curl --fail --silent --show-error -L --retry 5 --retry-all-errors \
+            "$NASA_URL" -o "$OUT/NASA_Battery_Data_Set.zip"
+          test -s "$OUT/NASA_Battery_Data_Set.zip"
+          sha256sum "$OUT/NASA_Battery_Data_Set.zip" > "$OUT/ARCHIVE_SHA256.txt"
+          stat --printf='%s\n' "$OUT/NASA_Battery_Data_Set.zip" > "$OUT/ARCHIVE_BYTES.txt"
+          cat > "$OUT/MEASUREMENT_ACCESS_STATUS.txt" <<'EOF'
+          The outer public NASA archive was downloaded byte-for-byte.
+          No ZIP member was listed, extracted, parsed, or otherwise opened by this bridge workflow.
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v021-nasa-battery-archive
+          path: ${{ runner.temp }}/causal-loom-v021-nasa-archive
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
