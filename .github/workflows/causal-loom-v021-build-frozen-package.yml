@@ -1,0 +1,93 @@
+name: Causal Loom v0.21 build sealed cross-domain frozen package
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/development_result/**'
+      - '.causal-loom-v021/build_cross_domain_frozen_package.py'
+      - '.causal-loom-v021/run_cross_domain_frozen_confirmation.py'
+      - '.github/workflows/causal-loom-v021-build-frozen-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Verify captured sealed development evidence
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready=true
+          reason='eligible'
+          for file in \
+            .causal-loom-v021/development_result/development_summary.json \
+            .causal-loom-v021/development_result/development_model.json \
+            .causal-loom-v021/development_result/CONFIRMATION_ACCESS_STATUS.txt \
+            .causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json \
+            .causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json; do
+            if [ ! -f "$file" ];then ready=false;reason="missing_${file//\//_}";fi
+          done
+          if [ "$ready" = true ];then
+            grep -qi '^False' .causal-loom-v021/development_result/CONFIRMATION_ACCESS_STATUS.txt
+            pass=$(python -c 'import json;print(str(bool(json.load(open(".causal-loom-v021/development_result/development_summary.json"))["development_gate"]["pass"])).lower())')
+            if [ "$pass" != true ];then ready=false;reason='sealed_development_gate_failed';fi
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT";echo "reason=$reason" >> "$GITHUB_OUTPUT";echo "ready=$ready reason=$reason"
+      - name: Record refusal without confirmation access
+        if: steps.gate.outputs.ready != 'true'
+        shell: bash
+        run: |
+          mkdir -p .causal-loom-v021/freeze_refused
+          printf '{"freeze_refused":true,"reason":"%s","confirmation_measurement_values_accessed":false}\n' '${{ steps.gate.outputs.reason }}' > .causal-loom-v021/freeze_refused/status.json
+      - name: Commit refusal status
+        if: steps.gate.outputs.ready != 'true'
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/freeze_refused
+          if git diff --cached --quiet;then exit 0;fi
+          git commit -m 'Refuse cross-domain freeze after sealed validation failure'
+          for attempt in 1 2 3 4;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
+      - name: Build immutable pre-confirmation package
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .causal-loom-v021/frozen
+          python .causal-loom-v021/build_cross_domain_frozen_package.py \
+            --development-summary .causal-loom-v021/development_result/development_summary.json \
+            --development-model .causal-loom-v021/development_result/development_model.json \
+            --premeasurement-protocol .causal-loom-v021/premeasurement_protocol/PREMEASUREMENT_PROTOCOL.json \
+            --metadata-manifest .causal-loom-v021/selected_holdout_metadata/METADATA_MANIFEST.json \
+            --development-runner .causal-loom-v021/develop_cross_domain_projective_response_atlas.py \
+            --frozen-runner .causal-loom-v021/run_cross_domain_frozen_confirmation.py \
+            --output-dir .causal-loom-v021/frozen
+          find .causal-loom-v021/frozen -type f ! -name SHA256SUMS.txt -print0|sort -z|xargs -0 sha256sum > .causal-loom-v021/frozen/SHA256SUMS.txt
+      - name: Commit frozen package before confirmation access
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/frozen
+          git commit -m 'Freeze cross-domain Projective Response Atlas before confirmation access'
+          for attempt in 1 2 3 4 5;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
