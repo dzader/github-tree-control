@@ -1,0 +1,93 @@
+name: Causal Loom v0.18 post-failure Volume 3 data bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v017-coordinate-field-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-volume3-postfailure-data.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v017-coordinate-field-20260831
+      - name: Reconstruct corrected consumed inventory and retrieve measurements
+        shell: bash
+        env:
+          V3_INDEX: https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/causal-loom-v018-volume3-postfailure-data"
+          DATADIR="$OUT/data"
+          mkdir -p "$DATADIR"
+          curl --fail --silent --show-error -L "$V3_INDEX" -o "$OUT/index.html"
+          export OUT
+          python - <<'PY'
+          import hashlib,json,os,re
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          out=Path(os.environ['OUT'])
+          raw=(out/'index.html').read_bytes(); html=raw.decode('utf-8','replace')
+          hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I)
+          base='https://m-selig.ae.illinois.edu/props/volume-3/'
+          dyn=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$',re.I)
+          dim=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)(?:f)?(?:_|$)',re.I)
+          entries=[]
+          for href in hrefs:
+              name=Path(href).name
+              if 'static' in name.lower(): continue
+              m=dyn.match(name)
+              if not m: continue
+              parts=m.group('prefix').split('_')
+              if len(parts)<2: continue
+              family='_'.join(parts[:-1]); dm=dim.search(family+'_')
+              if not dm: continue
+              D=float(dm.group('D')); P=float(dm.group('P'))
+              if family.startswith('ancf_125x'):
+                  D=12.5
+                  if family=='ancf_125x75': P=7.5
+              entries.append({'href':href,'url':urljoin(base,href),'filename':name,'family':family,'diameter_in':D,'pitch_in':P,'rpm':int(m.group('rpm'))})
+          by={}
+          for row in entries: by.setdefault(row['family'],[]).append(row)
+          families=[]
+          for family,rows in sorted(by.items()):
+              seen=set(); uniq=[]
+              for row in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if row['url'] in seen: continue
+                  seen.add(row['url']); uniq.append(row)
+              if len(uniq)<4: continue
+              families.append({'family':family,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],'run_count':len(uniq),'runs':uniq})
+          payload={'source_index':os.environ['V3_INDEX'],'index_sha256':hashlib.sha256(raw).hexdigest(),'postfailure_development_only':True,'corrected_families':['ancf_125x6','ancf_125x75','ancf_125x9'],'family_count':len(families),'run_count':sum(f['run_count'] for f in families),'families':families}
+          (out/'inventory_corrected.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          with (out/'download.tsv').open('w') as f:
+              for family in families:
+                  for row in family['runs']:
+                      f.write(row['url']+'\t'+row['filename']+'\n')
+          print('INVENTORY',len(families),sum(f['run_count'] for f in families))
+          PY
+          export DATADIR
+          cat "$OUT/download.tsv" | xargs -P 16 -d '\n' -I{} bash -c '
+            line="$1"; url="${line%%$'"'"'\t'"'"'*}"; name="${line#*$'"'"'\t'"'"'}";
+            curl --fail --silent --show-error -L --retry 3 "$url" -o "$DATADIR/$name";
+            test -s "$DATADIR/$name"
+          ' _ {}
+          test "$(find "$DATADIR" -type f | wc -l)" -eq 279
+          find "$DATADIR" -type f -print0 | sort -z | xargs -0 sha256sum > "$OUT/DATA_SHA256SUMS.txt"
+          rm "$OUT/download.tsv"
+          echo CONSUMED_VOLUME3_DATA_BRIDGED
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-volume3-postfailure-data
+          path: ${{ runner.temp }}/causal-loom-v018-volume3-postfailure-data
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
