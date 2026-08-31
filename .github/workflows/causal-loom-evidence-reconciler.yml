@@ -1,0 +1,82 @@
+name: Causal Loom serialized evidence reconciler
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.github/workflows/causal-loom-evidence-reconciler.yml'
+      - '.causal-loom-v019/**'
+      - '.causal-loom-v020/**'
+      - '.causal-loom-v021/**'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+concurrency:
+  group: causal-loom-evidence-reconciler
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Download every available canonical evidence artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          reconcile_one() {
+            workflow="$1" artifact="$2" destination="$3"
+            echo "Reconciling workflow=$workflow artifact=$artifact destination=$destination"
+            run_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=causal-loom-v019-projective-atlas-enola-20260831&per_page=20")
+            run_id=$(printf '%s' "$run_json" | jq -r '[.workflow_runs[] | select(.status=="completed")][0].id // empty')
+            if [ -z "$run_id" ]; then echo '  no completed run'; return 0; fi
+            artifact_json=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts")
+            artifact_id=$(printf '%s' "$artifact_json" | jq -r --arg n "$artifact" '[.artifacts[] | select(.name==$n and .expired==false)][0].id // empty')
+            if [ -z "$artifact_id" ]; then echo "  artifact unavailable on run $run_id"; return 0; fi
+            tmp="$RUNNER_TEMP/reconcile-${artifact_id}"
+            rm -rf "$tmp"; mkdir -p "$tmp"
+            gh run download "$run_id" -n "$artifact" -D "$tmp"
+            test -n "$(find "$tmp" -type f -print -quit)"
+            rm -rf "$destination"; mkdir -p "$destination"
+            cp -a "$tmp/." "$destination/"
+            printf '%s\n' "$run_id" > "$destination/GITHUB_RUN_ID.txt"
+            printf '%s\n' "$artifact_id" > "$destination/GITHUB_ARTIFACT_ID.txt"
+            printf '%s\n' "$(printf '%s' "$run_json" | jq -r --argjson id "$run_id" '.workflow_runs[] | select(.id==$id) | .conclusion')" > "$destination/GITHUB_WORKFLOW_CONCLUSION.txt"
+            find "$destination" -type f ! -name RECONCILED_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > "$destination/RECONCILED_SHA256SUMS.txt"
+          }
+
+          reconcile_one causal-loom-v019-five-probe-development.yml causal-loom-v019-five-probe-development .causal-loom-v019/development_result
+          reconcile_one causal-loom-v019-lowrank-v2-five-probe-development.yml causal-loom-v019-lowrank-v2-five-probe-development .causal-loom-v019/lowrank_v2_development_result
+          reconcile_one causal-loom-v020-lie-five-probe-development.yml causal-loom-v020-lie-five-probe-development .causal-loom-v020/lie_development_result
+          reconcile_one causal-loom-v019-enola-metadata-parse.yml causal-loom-v019-enola-documentation-metadata .causal-loom-v019/enola_metadata
+          reconcile_one causal-loom-v019-frozen-enola.yml causal-loom-v019-enola-frozen-evidence .causal-loom-v019/frozen_result
+          reconcile_one causal-loom-v019-lowrank-frozen-enola.yml causal-loom-v019-lowrank-enola-frozen-evidence .causal-loom-v019/lowrank_frozen_result
+          reconcile_one causal-loom-v020-lie-frozen-enola.yml causal-loom-v020-lie-enola-frozen-evidence .causal-loom-v020/lie_frozen_result
+      - name: Commit one atomic evidence snapshot with push retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Reconciler'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v019 .causal-loom-v020
+          if git diff --cached --quiet; then echo 'No new evidence'; exit 0; fi
+          git commit -m 'Reconcile all available Causal Loom evidence artifacts'
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831; then exit 0; fi
+            echo "Push race attempt $attempt; rebasing"
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831
+            sleep $((attempt*2))
+          done
+          echo 'Unable to publish reconciled evidence after retries' >&2
+          exit 1
