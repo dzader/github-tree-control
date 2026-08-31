@@ -1,0 +1,76 @@
+name: Causal Loom v0.21 select untouched cross-domain holdout
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v021/cross_domain_inventory/zenodo_candidates.json'
+      - '.github/workflows/causal-loom-v021-select-cross-domain-holdout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Select using metadata only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .causal-loom-v021/cross_domain_inventory/zenodo_candidates.json
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          source=Path('.causal-loom-v021/cross_domain_inventory/zenodo_candidates.json')
+          data=json.load(open(source));candidates=[]
+          domain_priority={'photovoltaic':50,'fuel_cell':35,'battery':30,'materials':20,'aerodynamics':5}
+          for row in data['candidates']:
+              domains=row.get('domains') or []
+              title=str(row.get('title',''));description=str(row.get('description_text',''));text=(title+' '+description).lower()
+              files=row.get('files') or [];extensions=[Path(str(f.get('key',''))).suffix.lower() for f in files]
+              size=sum(int(f.get('size') or 0) for f in files)
+              score=float(row.get('metadata_suitability_score') or 0)
+              score+=max([domain_priority.get(d,0) for d in domains] or [0])
+              score+=12*('i-v' in text or 'iv curve' in text or 'current-voltage' in text)
+              score+=8*('irradiance' in text)+8*('temperature' in text)
+              score+=6*('multiple' in text or 'various' in text or 'different' in text)
+              score+=5*any(ext in {'.csv','.xlsx','.xls','.mat','.h5','.hdf5','.zip','.txt'} for ext in extensions)
+              score-=20*(size>2_000_000_000)
+              score-=12*('simulation' in text and 'experimental' not in text and 'measurement' not in text)
+              row=dict(row);row['selection_score']=score;row['total_file_bytes']=size;row['file_extensions']=extensions;candidates.append(row)
+          ranked=sorted(candidates,key=lambda x:(-x['selection_score'],x['title']))
+          if not ranked:raise RuntimeError('no metadata candidate')
+          selected=ranked[0]
+          # Require an open, tabular, physical candidate; otherwise explicitly refuse selection.
+          physical=any(word in (selected['title']+' '+selected.get('description_text','')).lower() for word in ('experimental','measurement','measured','test'))
+          tabular=any(ext in {'.csv','.xlsx','.xls','.mat','.h5','.hdf5','.zip','.txt'} for ext in selected['file_extensions'])
+          status='selected' if physical and tabular else 'selection_refused'
+          out={'status':status,'measurement_values_accessed':False,'selection_method':'predeclared metadata score preferring photovoltaic then fuel-cell/battery, physical measured curves, multiple conditions, and tabular open files','selected':selected if status=='selected' else None,'top_five':ranked[:5]}
+          target=Path('.causal-loom-v021/selected_holdout');target.mkdir(parents=True,exist_ok=True)
+          (target/'SELECTED_HOLDOUT.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          lines=['# Causal Loom v0.21 untouched cross-domain holdout selection','',f"Status: **{status}**",'',f"Measurement values accessed: **False**",'']
+          if status=='selected':
+              lines += [f"Selected: **{selected['title']}**",f"Zenodo record: `{selected['record_id']}`",f"Domains: {', '.join(selected.get('domains',[]))}",f"Metadata score: {selected['selection_score']}",'','Files:']
+              for f in selected.get('files',[]):lines.append(f"- `{f.get('key')}` — {f.get('size')} bytes — {f.get('checksum')}")
+          else:lines.append('No candidate met the predeclared physical/tabular criteria; no data file will be opened.')
+          (target/'SELECTION.md').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({'status':status,'record_id':selected.get('record_id') if status=='selected' else None,'title':selected.get('title') if status=='selected' else None,'score':selected.get('selection_score') if status=='selected' else None},sort_keys=True))
+          PY
+      - name: Commit metadata-only selection
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v021/selected_holdout
+          git commit -m 'Select untouched cross-domain holdout by metadata only'
+          for attempt in 1 2 3 4;do
+            if git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;then exit 0;fi
+            git pull --rebase origin causal-loom-v019-projective-atlas-enola-20260831;sleep $((attempt*2))
+          done
+          exit 1
