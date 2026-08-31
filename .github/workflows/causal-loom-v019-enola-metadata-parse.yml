@@ -1,0 +1,95 @@
+name: Causal Loom v0.19 ENOLA documentation metadata parse
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.github/workflows/causal-loom-v019-enola-metadata-parse.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parse-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install openpyxl==3.1.5
+      - name: Parse documentation and inventory metadata only
+        shell: bash
+        env:
+          ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+        run: |
+          set -euo pipefail
+          OUT=causal-loom-v019-enola-documentation-metadata
+          rm -rf "$OUT"; mkdir -p "$OUT"
+          curl --fail --silent --show-error -L --retry 4 "$ENOLA_URL" -o "$RUNNER_TEMP/Propeller_Database.zip"
+          export ZIP="$RUNNER_TEMP/Propeller_Database.zip" OUT
+          python - <<'PY'
+          import hashlib,json,os,zipfile
+          from io import BytesIO
+          from pathlib import Path
+          from openpyxl import load_workbook
+
+          zpath=Path(os.environ['ZIP']); out=Path(os.environ['OUT'])
+          raw=zpath.read_bytes()
+          payload={'archive_sha256':hashlib.sha256(raw).hexdigest(),'archive_bytes':len(raw),'measurement_values_read':False}
+          with zipfile.ZipFile(zpath) as z:
+              names=sorted(z.namelist())
+              payload['archive_member_count']=len(names)
+              payload['archive_paths']=names
+              docs=[]; workbook=None
+              for name in names:
+                  base=Path(name).name.lower()
+                  if base.startswith('readme') and not name.endswith('/'):
+                      text=z.read(name).decode('utf-8','replace')
+                      docs.append({'path':name,'text':text})
+                  if base in {'generalinfo.xlsx','general_info.xlsx','00_generalnfo.xlsx','00_generalinfo.xlsx'}:
+                      workbook=(name,z.read(name))
+              payload['readmes']=docs
+              if workbook is None: raise RuntimeError('general-information workbook not found')
+              wb=load_workbook(BytesIO(workbook[1]),read_only=True,data_only=True)
+              w={'path':workbook[0],'sha256':hashlib.sha256(workbook[1]).hexdigest(),'sheets':[]}
+              for ws in wb.worksheets:
+                  rows=[]
+                  for row in ws.iter_rows():
+                      values=[]
+                      any_value=False
+                      for cell in row:
+                          v=cell.value
+                          if v is not None: any_value=True
+                          if hasattr(v,'isoformat'): v=v.isoformat()
+                          values.append(v)
+                      if any_value: rows.append(values)
+                  w['sheets'].append({'title':ws.title,'max_row':ws.max_row,'max_column':ws.max_column,'nonempty_rows':rows})
+              payload['general_information_workbook']=w
+          text=json.dumps(payload,indent=2,sort_keys=True,default=str)+'\n'
+          (out/'metadata_summary.json').write_text(text)
+          compact={
+            'archive_sha256':payload['archive_sha256'],
+            'archive_bytes':payload['archive_bytes'],
+            'archive_member_count':payload['archive_member_count'],
+            'readme_count':len(payload['readmes']),
+            'workbook_path':payload['general_information_workbook']['path'],
+            'workbook_sheets':[{'title':s['title'],'rows':len(s['nonempty_rows']),'cols':s['max_column']} for s in payload['general_information_workbook']['sheets']],
+            'top_level_paths':sorted(set(n.split('/')[0] for n in payload['archive_paths'] if n)),
+          }
+          print('ENOLA_METADATA='+json.dumps(compact,sort_keys=True))
+          PY
+          printf '%s  %s\n' "$(sha256sum "$RUNNER_TEMP/Propeller_Database.zip" | cut -d' ' -f1)" Propeller_Database.zip > "$OUT/ARCHIVE_SHA256.txt"
+          echo 'Only README files, archive paths, and the general-information workbook were parsed. No performance-result table was opened.' > "$OUT/MEASUREMENT_ACCESS_STATUS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v019-enola-documentation-metadata
+          path: causal-loom-v019-enola-documentation-metadata
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
