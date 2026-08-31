@@ -1,4 +1,4 @@
-name: Causal Loom v0.18 consumed UIUC c75 geometry bridge
+name: Causal Loom v0.18 consumed UIUC geometry feature bridge
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: causal-loom-v018-local-reynolds-20260831
-      - name: Extract c/R at 75 percent radius from public geometry files
+      - name: Extract local and integrated geometry features from public geometry files
         shell: bash
         run: |
           set -euo pipefail
@@ -36,54 +36,59 @@ jobs:
           root=Path(os.environ['UIUC']); out=Path(os.environ['OUT'])
           rows=[]
           dim_re=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)_')
-          def interp75(points):
+          def interp(points,x):
               pts=sorted(points)
-              if len(pts)<2: return None
-              x=0.75
-              if x<=pts[0][0]: return pts[0][1]
-              if x>=pts[-1][0]: return pts[-1][1]
+              if len(pts)<2:return None
+              if x<=pts[0][0]:return pts[0][1]
+              if x>=pts[-1][0]:return pts[-1][1]
               for (x0,y0),(x1,y1) in zip(pts,pts[1:]):
                   if x0<=x<=x1:
-                      if x1==x0: return (y0+y1)/2
-                      t=(x-x0)/(x1-x0); return y0+t*(y1-y0)
+                      if x1==x0:return (y0+y1)/2
+                      t=(x-x0)/(x1-x0);return y0+t*(y1-y0)
               return None
+          def trapz(points):
+              pts=sorted(points);s=0.0
+              for (x0,y0),(x1,y1) in zip(pts,pts[1:]):s+=(x1-x0)*(y0+y1)/2
+              return s
           for folder in ['Propeller_Data_V1','Propeller_Data_V2']:
               for p in sorted((root/folder).glob('*geom*.txt')):
-                  name=p.name; parts=name.split('_')
-                  if len(parts)<3: continue
-                  family='_'.join(parts[:2])
-                  dm=dim_re.search('_'+parts[1]+'_')
-                  if not dm: continue
-                  pts=[]
+                  name=p.name;parts=name.split('_')
+                  if len(parts)<3:continue
+                  family='_'.join(parts[:2]);dm=dim_re.search('_'+parts[1]+'_')
+                  if not dm:continue
+                  chord=[];twist=[]
                   for line in p.read_text(errors='replace').splitlines()[1:]:
                       fields=line.split()
-                      if len(fields)<2: continue
-                      try: rr=float(fields[0]); cr=float(fields[1])
-                      except ValueError: continue
-                      if math.isfinite(rr) and math.isfinite(cr): pts.append((rr,cr))
-                  cR75=interp75(pts)
-                  if cR75 is None: continue
-                  D=float(dm.group('D')); P=float(dm.group('P')); raw=p.read_bytes()
-                  rows.append({
-                    'family':family,'folder':folder,'geom_path':str(p.relative_to(root)),
-                    'geom_blob_sha':hashlib.sha1((f"blob {len(raw)}\0").encode()+raw).hexdigest(),
-                    'diameter_in':D,'pitch_in':P,'cR75':cR75,'c75_in':cR75*(D/2.0),
-                  })
+                      if len(fields)<3:continue
+                      try:rr=float(fields[0]);cr=float(fields[1]);beta=float(fields[2])
+                      except ValueError:continue
+                      if math.isfinite(rr) and math.isfinite(cr):chord.append((rr,cr))
+                      if math.isfinite(rr) and math.isfinite(beta):twist.append((rr,beta))
+                  if len(chord)<2 or len(twist)<2:continue
+                  vals={}
+                  for x in [0.5,0.6,0.7,0.75,0.8,0.9]:
+                      vals[f'cR{int(x*100)}']=interp(chord,x);vals[f'beta{int(x*100)}_deg']=interp(twist,x)
+                  vals['cR_integral']=trapz(chord);vals['cR_max']=max(y for _,y in chord)
+                  vals['beta_span_deg']=max(y for _,y in twist)-min(y for _,y in twist)
+                  vals['beta_root_minus_tip_deg']=twist[0][1]-twist[-1][1]
+                  D=float(dm.group('D'));P=float(dm.group('P'));raw=p.read_bytes()
+                  row={'family':family,'folder':folder,'geom_path':str(p.relative_to(root)),'geom_blob_sha':hashlib.sha1((f"blob {len(raw)}\0").encode()+raw).hexdigest(),'diameter_in':D,'pitch_in':P,'pitch_ratio':P/D}
+                  row.update(vals);row['c75_in']=vals['cR75']*(D/2.0)
+                  rows.append(row)
           by={}
-          for r in rows: by.setdefault(r['family'],[]).append(r)
-          final=[sorted(rs,key=lambda x:(x['geom_path'],x['geom_blob_sha']))[0] for fam,rs in sorted(by.items())]
-          if not final: raise RuntimeError('no geometry rows parsed')
-          with (out/'geometry_c75.csv').open('w',newline='') as f:
+          for r in rows:by.setdefault(r['family'],[]).append(r)
+          final=[sorted(rs,key=lambda x:(x['geom_path'],x['geom_blob_sha']))[0] for _,rs in sorted(by.items())]
+          if not final:raise RuntimeError('no geometry rows parsed')
+          with (out/'geometry_features.csv').open('w',newline='') as f:
               w=csv.DictWriter(f,fieldnames=list(final[0]));w.writeheader();w.writerows(final)
           payload={'source_repo':'pfreitas97/Parser_UIUC_AeroData','commit':os.environ['UIUC_COMMIT'],'family_count':len(final),'rows':final}
-          text=json.dumps(payload,indent=2,sort_keys=True)+'\n';(out/'geometry_c75.json').write_text(text)
-          (out/'SHA256SUMS.txt').write_text(hashlib.sha256((out/'geometry_c75.csv').read_bytes()).hexdigest()+'  geometry_c75.csv\n'+hashlib.sha256(text.encode()).hexdigest()+'  geometry_c75.json\n')
-          print('GEOMETRY_FAMILIES',len(final))
-          print('CR75_RANGE',min(r['cR75'] for r in final),max(r['cR75'] for r in final))
+          text=json.dumps(payload,indent=2,sort_keys=True)+'\n';(out/'geometry_features.json').write_text(text)
+          (out/'SHA256SUMS.txt').write_text(hashlib.sha256((out/'geometry_features.csv').read_bytes()).hexdigest()+'  geometry_features.csv\n'+hashlib.sha256(text.encode()).hexdigest()+'  geometry_features.json\n')
+          print('GEOMETRY_FAMILIES',len(final));print('CR75_RANGE',min(r['cR75'] for r in final),max(r['cR75'] for r in final));print('BETA75_RANGE',min(r['beta75_deg'] for r in final),max(r['beta75_deg'] for r in final))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v018-consumed-uiuc-c75-geometry
+          name: causal-loom-v018-consumed-uiuc-geometry-features
           path: ${{ runner.temp }}/v018-geometry
           if-no-files-found: error
           retention-days: 90
