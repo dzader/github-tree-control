@@ -1,0 +1,115 @@
+{
+  "coordinate_field_derivation": {
+    "R_definition": "R=(RPM/5000)*(D_in/10)^2",
+    "all_family_ols_c0": -1.1212445457321674,
+    "all_family_ols_c1": -0.12547113378088646,
+    "derivation_note": "Because b_eff=-1+d ln G/d ln R, c0=-1.12,c1=-0.125 integrates to ln G=-0.12*r-0.0625*r^2 up to an irrelevant constant input scale.",
+    "effective_local_rpm_exponent_fit": "b_eff(r)=c0+c1*r",
+    "frozen_rounded_c0": -1.12,
+    "frozen_rounded_c1": -0.125,
+    "integrated_coordinate": "z = J * exp(-0.12*r - 0.0625*r^2)",
+    "r_definition": "r=ln(R)"
+  },
+  "development_sources": {
+    "original_data_status": "previously consumed development data from v0.14",
+    "original_uiuc_v1_v2_family_count_used": 137,
+    "uiuc_volume4_family_count_used": 16,
+    "volume4_data_status": "consumed only after v0.16 frozen failure; development-only for v0.17"
+  },
+  "family_counterfactual_objective": {
+    "best_b_mean": -1.0953284671532846,
+    "best_b_median": -1.12,
+    "best_b_std": 0.09674875530411626,
+    "candidate_b_grid": [
+      -2.2,
+      -0.5,
+      0.02
+    ],
+    "corr_best_b_log_Rnorm": -0.6028147966733909,
+    "description": "For each consumed family and candidate fixed b, reconstruct dimensional airspeed from J, RPM, D; define z=V*(RPM/5000)^b; measure symmetric pairwise CT/CP curve mismatch across RPM runs on common z support; family score is median pair geometric-mean normalized error."
+  },
+  "five_fold_family_disjoint_stability": [
+    {
+      "field_vs_fixed_gamma_minus_0p1_median_ratio": 0.9477447114118244,
+      "fit_intercept_b_at_logR0": -1.1183256854503334,
+      "fit_slope_db_dlogR": -0.12055127890291076,
+      "fold": 0,
+      "n": 26,
+      "win_fraction": 0.6538461538461539
+    },
+    {
+      "field_vs_fixed_gamma_minus_0p1_median_ratio": 0.969103822078076,
+      "fit_intercept_b_at_logR0": -1.1227033761920888,
+      "fit_slope_db_dlogR": -0.12444896064331346,
+      "fold": 1,
+      "n": 33,
+      "win_fraction": 0.6666666666666666
+    },
+    {
+      "field_vs_fixed_gamma_minus_0p1_median_ratio": 0.9266872844556789,
+      "fit_intercept_b_at_logR0": -1.1166760735483185,
+      "fit_slope_db_dlogR": -0.12235329220852398,
+      "fold": 2,
+      "n": 23,
+      "win_fraction": 0.7391304347826086
+    },
+    {
+      "field_vs_fixed_gamma_minus_0p1_median_ratio": 0.9521329790080683,
+      "fit_intercept_b_at_logR0": -1.1219978009629308,
+      "fit_slope_db_dlogR": -0.12922980313490837,
+      "fold": 3,
+      "n": 31,
+      "win_fraction": 0.6451612903225806
+    },
+    {
+      "field_vs_fixed_gamma_minus_0p1_median_ratio": 0.9489781986432959,
+      "fit_intercept_b_at_logR0": -1.126623691442333,
+      "fit_slope_db_dlogR": -0.13218448552544725,
+      "fold": 4,
+      "n": 24,
+      "win_fraction": 0.5833333333333334
+    }
+  ],
+  "novelty_boundary": "This is a development result for a low-complexity coordinate field. It is not confirmatory until frozen against untouched measurement files. It does not claim exact Reynolds-number theory.",
+  "parent_failures": {
+    "v015": "frozen raw-coordinate exponent b=-1.12 failed primary external TU Delft collapse gate but improved flight transfer by 12.8%",
+    "v016": "adaptive per-family scalar b failed to improve over fixed global b on UIUC Volume4; adaptive/canonical ratio 0.701684"
+  },
+  "protocol_stage": "v0.17-post-v0.16-failure-development-before-UIUC-Volume3-measurement-access",
+  "rounded_law_results_original_consumed": {
+    "field_vs_fixed_gamma_minus_0p1": {
+      "geometric_mean_ratio": 0.8654951034788204,
+      "median_a": 0.05267594000711215,
+      "median_b": 0.06038455362711425,
+      "median_ratio": 0.9502166964404032,
+      "n": 137,
+      "win_fraction": 0.656934306569343
+    },
+    "field_vs_plain_J": {
+      "geometric_mean_ratio": 0.7179330835886996,
+      "median_a": 0.05267594000711215,
+      "median_b": 0.0798267286839631,
+      "median_ratio": 0.6846639094669049,
+      "n": 137,
+      "win_fraction": 0.7956204379562044
+    }
+  },
+  "rounded_law_results_volume4_postfailure_consumed": {
+    "field_vs_fixed_gamma_minus_0p1": {
+      "geometric_mean_ratio": 0.7835651747681046,
+      "median_a": 0.10573657998328861,
+      "median_b": 0.13677886323605284,
+      "median_ratio": 0.7657804829435757,
+      "n": 16,
+      "win_fraction": 0.875
+    },
+    "field_vs_plain_J": {
+      "geometric_mean_ratio": 0.5889715271242594,
+      "median_a": 0.10573657998328861,
+      "median_b": 0.17691399042694222,
+      "median_ratio": 0.5988801735999254,
+      "n": 16,
+      "win_fraction": 1.0
+    }
+  }
+}
