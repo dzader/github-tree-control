@@ -1,0 +1,19 @@
+{
+  "stage": "post-scientific-freeze, pre-numerical-outcome-access",
+  "delimiter": ",",
+  "encoding": "utf-8-sig with replacement fallback",
+  "required_columns": ["RPM","J","CT"],
+  "column_policy": "Normalize header tokens to uppercase alphanumeric and require exactly one RPM, J, and CT column. All other columns are ignored.",
+  "result_values_recorded_during_schema_extraction": false,
+  "observed_headers": {
+    "AeronautCAM9x5": "RPM,V[m/s],J,THRUST[N]u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "APC15x8": "RPM,V[m/s],J,THRUST[N]u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "APC19x10": "RPM,V[m/s],J,THRUST[N]u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "Casalino": "RPM,V[m/s],J,THRUST[N],u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "MS1101": "RPM,V[m/s],J,THRUST[N],TORQUE[Nm],CT,CQ,CP",
+    "XOAR10x6": "RPM,V[m/s],J,THRUST[N]u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "XOAR16x12": "RPM,V[m/s],J,THRUST[N]u_THRUST[N],TORQUE[Nm],u_TORQUE[Nm],CT,u_CT,CP,u_CP",
+    "XOAR9x7": "RPM,V,J,THRUST,TORQUE,CT,CQ,CP"
+  },
+  "note": "Several source headers omit a comma between thrust and thrust-uncertainty labels; this is irrelevant because the parser uses only RPM, J, and CT, which remain unambiguous."
+}
