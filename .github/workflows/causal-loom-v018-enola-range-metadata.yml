@@ -1,0 +1,80 @@
+name: Causal Loom v0.18 ENOLA range-only metadata bridge
+
+on:
+  push:
+    branches:
+      - causal-loom-v018-local-reynolds-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-enola-range-metadata.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v018-local-reynolds-20260831
+      - name: Fetch ZIP directory and GeneralInfo only by HTTP ranges
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/v018-enola-range-meta"; mkdir -p "$OUT"; export OUT
+          python - <<'PY'
+          import hashlib,json,os,struct,urllib.request,zlib
+          from pathlib import Path
+          URL=os.environ['ENOLA_URL']; out=Path(os.environ['OUT'])
+          def req_range(a,b=None):
+              hdr={'Range':f'bytes={a}-'+('' if b is None else str(b)),'User-Agent':'causal-loom-metadata/1'}
+              with urllib.request.urlopen(urllib.request.Request(URL,headers=hdr),timeout=60) as r:
+                  return r.read(), dict(r.headers)
+          # HEAD to resolve size.
+          with urllib.request.urlopen(urllib.request.Request(URL,method='HEAD',headers={'User-Agent':'causal-loom-metadata/1'}),timeout=60) as r:
+              size=int(r.headers.get('Content-Length') or 0)
+          if size<=0: raise RuntimeError('missing content length')
+          tail,_=req_range(max(0,size-65557),size-1)
+          pos=tail.rfind(b'PK\x05\x06')
+          if pos<0: raise RuntimeError('EOCD not found')
+          eocd=tail[pos:pos+22]
+          sig,disk,cd_disk,n_disk,n_total,cd_size,cd_off,comment_len=struct.unpack('<4s4H2LH',eocd)
+          cd,_=req_range(cd_off,cd_off+cd_size-1)
+          entries=[];i=0
+          while i+46<=len(cd):
+              if cd[i:i+4]!=b'PK\x01\x02': break
+              fields=struct.unpack('<4s6H3L5H2L',cd[i:i+46])
+              comp=fields[4]; crc=fields[7]; csize=fields[8]; usize=fields[9]; nlen=fields[10]; xlen=fields[11]; clen=fields[12]; loff=fields[16]
+              name=cd[i+46:i+46+nlen].decode('utf-8','replace')
+              entries.append({'path':name,'compression':comp,'crc32':crc,'compressed_size':csize,'uncompressed_size':usize,'local_offset':loff})
+              i += 46+nlen+xlen+clen
+          if len(entries)<100: raise RuntimeError(f'implausible central directory {len(entries)}')
+          target=next((e for e in entries if e['path']=='BBDD/00_Generalnfo.xlsx'),None)
+          if target is None: raise RuntimeError('GeneralInfo not found')
+          # Fetch local header, then only this metadata member's compressed bytes.
+          lh,_=req_range(target['local_offset'],target['local_offset']+2047)
+          if lh[:4]!=b'PK\x03\x04': raise RuntimeError('bad local header')
+          vals=struct.unpack('<4s5H3L2H',lh[:30]); nlen=vals[9]; xlen=vals[10]
+          data_start=target['local_offset']+30+nlen+xlen
+          comp_bytes,_=req_range(data_start,data_start+target['compressed_size']-1)
+          if target['compression']==0: raw=comp_bytes
+          elif target['compression']==8: raw=zlib.decompress(comp_bytes,-15)
+          else: raise RuntimeError('unsupported compression')
+          if len(raw)!=target['uncompressed_size']: raise RuntimeError('size mismatch')
+          (out/'00_Generalnfo.xlsx').write_bytes(raw)
+          path_payload={'archive_content_length':size,'central_directory_entries':len(entries),'archive_paths':[e['path'] for e in entries],'general_info_member':target,'result_member_bytes_read':False}
+          txt=json.dumps(path_payload,indent=2,sort_keys=True)+'\n';(out/'range_inventory.json').write_text(txt)
+          (out/'SHA256SUMS.txt').write_text(hashlib.sha256(raw).hexdigest()+'  00_Generalnfo.xlsx\n'+hashlib.sha256(txt.encode()).hexdigest()+'  range_inventory.json\n')
+          print('RANGE_METADATA_OK',size,len(entries),target['uncompressed_size'],hashlib.sha256(raw).hexdigest())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-enola-range-metadata
+          path: ${{ runner.temp }}/v018-enola-range-meta
+          if-no-files-found: error
+          retention-days: 90
