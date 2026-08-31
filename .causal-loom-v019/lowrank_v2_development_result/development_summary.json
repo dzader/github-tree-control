@@ -1,0 +1,121 @@
+{
+  "atlas_diagnostics": {
+    "median_c": -0.09177193776200976,
+    "median_weight": 0.55,
+    "nonzero_weight_fraction": 0.775
+  },
+  "development_gate": {
+    "atlas_ratio_vs_best_learned_control": 0.6726660737493764,
+    "best_learned_control_geometric_mean_joint": 0.05216062641932677,
+    "pass": false,
+    "requirements": {
+      "geometric_mean_ratio_vs_fixed_lte": 0.92,
+      "ratio_vs_best_learned_control_lte": 0.9,
+      "tangent_correlation_each_gte": 0.75,
+      "win_fraction_vs_fixed_gte": 0.65,
+      "worst_ratio_vs_fixed_lte": 1.8
+    }
+  },
+  "family_count": 40,
+  "methods": {
+    "direct_poly": {
+      "geometric_mean_joint": 0.05216062641932677,
+      "geometric_mean_ratio_vs_fixed": 1.2779180073545933,
+      "median_joint": 0.05055498134662111,
+      "median_ratio_vs_fixed": 1.3395581384095276,
+      "p90_ratio_vs_fixed": 1.9151699313119606,
+      "win_fraction_vs_fixed": 0.25,
+      "worst_ratio_vs_fixed": 3.2216816351495092
+    },
+    "extra_trees": {
+      "geometric_mean_joint": 0.07061668148842798,
+      "geometric_mean_ratio_vs_fixed": 1.7300852211439108,
+      "median_joint": 0.06858015221929539,
+      "median_ratio_vs_fixed": 1.6796176191545378,
+      "p90_ratio_vs_fixed": 2.989168062874809,
+      "win_fraction_vs_fixed": 0.125,
+      "worst_ratio_vs_fixed": 3.919681066582801
+    },
+    "fixed": {
+      "geometric_mean_joint": 0.04081688036253909,
+      "geometric_mean_ratio_vs_fixed": 1.0,
+      "median_joint": 0.04168372586707478,
+      "median_ratio_vs_fixed": 1.0,
+      "p90_ratio_vs_fixed": 1.0,
+      "win_fraction_vs_fixed": 0.0,
+      "worst_ratio_vs_fixed": 1.0
+    },
+    "hist_gb": {
+      "geometric_mean_joint": 0.06420245902187828,
+      "geometric_mean_ratio_vs_fixed": 1.5729389030133234,
+      "median_joint": 0.05661650454125029,
+      "median_ratio_vs_fixed": 1.5289915174432451,
+      "p90_ratio_vs_fixed": 2.916842819545758,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 5.4474885429208495
+    },
+    "mlp": {
+      "geometric_mean_joint": 0.09361576970326202,
+      "geometric_mean_ratio_vs_fixed": 2.2935552367490764,
+      "median_joint": 0.09688146468382075,
+      "median_ratio_vs_fixed": 2.3572067779717987,
+      "p90_ratio_vs_fixed": 3.4131519033915514,
+      "win_fraction_vs_fixed": 0.025,
+      "worst_ratio_vs_fixed": 6.573671301551217
+    },
+    "plain_j": {
+      "geometric_mean_joint": 0.04785393183186777,
+      "geometric_mean_ratio_vs_fixed": 1.1724054216496946,
+      "median_joint": 0.044943173543628194,
+      "median_ratio_vs_fixed": 1.155886186045714,
+      "p90_ratio_vs_fixed": 1.65663533688327,
+      "win_fraction_vs_fixed": 0.225,
+      "worst_ratio_vs_fixed": 2.7722515921774598
+    },
+    "raw_atlas": {
+      "geometric_mean_joint": 0.04056791994616638,
+      "geometric_mean_ratio_vs_fixed": 0.9939005525615526,
+      "median_joint": 0.032910862507149766,
+      "median_ratio_vs_fixed": 0.8754563796791867,
+      "p90_ratio_vs_fixed": 2.0252211212802127,
+      "win_fraction_vs_fixed": 0.575,
+      "worst_ratio_vs_fixed": 14.695733866319978
+    },
+    "safe_atlas": {
+      "geometric_mean_joint": 0.03508668377779653,
+      "geometric_mean_ratio_vs_fixed": 0.8596120885808414,
+      "median_joint": 0.03546922127507671,
+      "median_ratio_vs_fixed": 0.9919067911082138,
+      "p90_ratio_vs_fixed": 1.2856837005836423,
+      "win_fraction_vs_fixed": 0.525,
+      "worst_ratio_vs_fixed": 1.6023904240191629
+    }
+  },
+  "protocol": "five family-disjoint folds; exactly five output-blind maximin probes; matched cubic and learned controls",
+  "tangent_mode_projective_correlation": {
+    "cp_median": 0.31758992910326095,
+    "ct_median": 0.20298485775137054,
+    "per_fold": [
+      {
+        "cp": 0.5453983518633766,
+        "ct": 0.20298485775137054
+      },
+      {
+        "cp": 0.05496440434961091,
+        "ct": 0.18223973610530683
+      },
+      {
+        "cp": 0.2660330484269404,
+        "ct": 0.2555104176413638
+      },
+      {
+        "cp": 0.3813378056839551,
+        "ct": 0.5601592280496553
+      },
+      {
+        "cp": 0.31758992910326095,
+        "ct": 0.08030503686219233
+      }
+    ]
+  }
+}
