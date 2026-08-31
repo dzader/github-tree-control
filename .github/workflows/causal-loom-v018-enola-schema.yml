@@ -1,0 +1,82 @@
+name: Causal Loom v0.18 ENOLA outcome-blind schema metadata
+
+on:
+  push:
+    branches:
+      - causal-loom-v018-local-reynolds-20260831
+    paths:
+      - '.github/workflows/causal-loom-v018-enola-schema.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  ENOLA_URL: https://zenodo.org/records/20111572/files/Propeller_Database.zip?download=1
+  ENOLA_MD5: 245267e590546f160f3b971d7f8e05fb
+
+jobs:
+  schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v018-local-reynolds-20260831
+      - name: Download and verify exact archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 3 "$ENOLA_URL" -o "$RUNNER_TEMP/enola.zip"
+          test "$(md5sum "$RUNNER_TEMP/enola.zip" | cut -d' ' -f1)" = "$ENOLA_MD5"
+      - name: Extract metadata workbook and CSV header schemas only
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/v018-enola-schema"; mkdir -p "$OUT"
+          unzip -p "$RUNNER_TEMP/enola.zip" 'BBDD/00_Generalnfo.xlsx' > "$OUT/00_Generalnfo.xlsx"
+          export ZIP="$RUNNER_TEMP/enola.zip" OUT
+          python - <<'PY'
+          import csv,hashlib,json,os,re,zipfile
+          from pathlib import Path
+          z=zipfile.ZipFile(os.environ['ZIP']); out=Path(os.environ['OUT'])
+          paths=z.namelist()
+          exp=[]
+          for p in paths:
+              base=Path(p).name
+              # candidate primary experimental performance CSVs only, exclude acoustics and numerics.
+              if '/results/' not in p or '/acoustics/' in p or not base.lower().endswith('.csv') or '_exp' not in base.lower():
+                  continue
+              # Keep axial/general exp tables; orientation-specific tables are secondary and excluded from primary schema.
+              if re.search(r'_exp_(?:15|30|45|60|75|90|0_90)_?deg',base,re.I):
+                  continue
+              raw=z.open(p)
+              text=[]
+              numeric_row_seen=False
+              for i,b in enumerate(raw):
+                  line=b.decode('utf-8','replace').rstrip('\r\n')
+                  # Never store numerical data rows. Detect them by first CSV token parsing as float.
+                  first=line.split(',')[0].strip().strip('"')
+                  is_numeric=False
+                  try:
+                      float(first); is_numeric=True
+                  except Exception:
+                      pass
+                  if is_numeric:
+                      numeric_row_seen=True
+                      break
+                  text.append(line)
+                  if i>=30: break
+              exp.append({'path':p,'header_lines':text,'numeric_row_seen_and_discarded':numeric_row_seen})
+          payload={'archive_md5':os.environ['ENOLA_MD5'],'result_values_recorded':False,'candidate_exp_files':exp}
+          txt=json.dumps(payload,indent=2,sort_keys=True)+'\n';(out/'exp_schema.json').write_text(txt)
+          (out/'SCHEMA_SHA256.txt').write_text(hashlib.sha256(txt.encode()).hexdigest()+'  exp_schema.json\n')
+          print('PRIMARY_EXP_SCHEMA_FILES',len(exp))
+          for e in exp: print(e['path'],e['header_lines'][:5])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v018-enola-outcome-blind-schema
+          path: ${{ runner.temp }}/v018-enola-schema
+          if-no-files-found: error
+          retention-days: 90
