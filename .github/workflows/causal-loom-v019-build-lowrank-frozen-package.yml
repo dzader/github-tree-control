@@ -1,0 +1,152 @@
+name: Causal Loom v0.19 build guarded low-rank frozen package
+
+on:
+  push:
+    branches:
+      - causal-loom-v019-projective-atlas-enola-20260831
+    paths:
+      - '.causal-loom-v019/lowrank_v2_development_result/**'
+      - '.causal-loom-v019/enola_metadata/**'
+      - '.causal-loom-v019/freeze_refused/**'
+      - '.causal-loom-v019/build_lowrank_frozen_package.py'
+      - '.causal-loom-v019/run_v019_lowrank_enola_frozen.py'
+      - '.github/workflows/causal-loom-v019-build-lowrank-frozen-package.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v019-projective-atlas-enola-20260831
+          fetch-depth: 0
+      - name: Verify eligibility and independence
+        id: eligible
+        shell: bash
+        run: |
+          set -euo pipefail
+          ok=true
+          reason='eligible'
+          if [ ! -f .causal-loom-v019/lowrank_v2_development_result/development_summary.json ]; then ok=false; reason='missing_lowrank_development'; fi
+          if [ ! -f .causal-loom-v019/enola_metadata/metadata_summary.json ]; then ok=false; reason='missing_enola_metadata'; fi
+          if [ -f .causal-loom-v019/frozen/READY_FOR_FIRST_MEASUREMENT_ACCESS.txt ]; then ok=false; reason='shift_candidate_already_frozen_or_running'; fi
+          if [ -f .causal-loom-v019/frozen_result/results.json ]; then ok=false; reason='enola_already_consumed_by_shift_candidate'; fi
+          if [ "$ok" = true ]; then
+            pass=$(python -c 'import json;print(str(bool(json.load(open(".causal-loom-v019/lowrank_v2_development_result/development_summary.json"))["development_gate"]["pass"])).lower())')
+            if [ "$pass" != true ]; then ok=false; reason='lowrank_development_gate_failed'; fi
+          fi
+          echo "eligible=$ok" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "eligibility=$ok reason=$reason"
+      - name: Record ineligibility without measurement access
+        if: steps.eligible.outputs.eligible != 'true'
+        shell: bash
+        run: |
+          mkdir -p .causal-loom-v019/lowrank_freeze_refused
+          printf '{"freeze_refused":true,"reason":"%s","measurement_values_accessed_by_this_path":false}\n' '${{ steps.eligible.outputs.reason }}' > .causal-loom-v019/lowrank_freeze_refused/status.json
+      - name: Commit refusal status
+        if: steps.eligible.outputs.eligible != 'true'
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v019/lowrank_freeze_refused
+          if ! git diff --cached --quiet; then git commit -m 'Record low-rank freeze ineligibility';git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831;fi
+      - uses: actions/setup-python@v5
+        if: steps.eligible.outputs.eligible == 'true'
+        with:
+          python-version: '3.11'
+      - name: Install deterministic builder dependencies
+        if: steps.eligible.outputs.eligible == 'true'
+        run: pip install numpy==2.1.3 scikit-learn==1.5.2 openpyxl==3.1.5
+      - name: Reconstruct consumed Volume-3 training inventory
+        if: steps.eligible.outputs.eligible == 'true'
+        shell: bash
+        env:
+          V3_INDEX: https://m-selig.ae.illinois.edu/props/volume-3/propDB-volume-3.html
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L "$V3_INDEX" -o "$RUNNER_TEMP/index.html"
+          export OUT="$RUNNER_TEMP/inventory.json"
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          html=(Path(os.environ['RUNNER_TEMP'])/'index.html').read_text(errors='replace');hrefs=re.findall(r'href=["\']([^"\']+\.txt)["\']',html,re.I);base='https://m-selig.ae.illinois.edu/props/volume-3/'
+          dyn=re.compile(r'^(?P<prefix>.+)_(?P<rpm>\d{3,5})\.txt$',re.I);dim=re.compile(r'_(?P<D>\d+(?:\.\d+)?)x(?P<P>\d+(?:\.\d+)?)(?:f)?(?:_|$)',re.I);entries=[]
+          for href in hrefs:
+              name=Path(href).name
+              if 'static' in name.lower():continue
+              m=dyn.match(name)
+              if not m:continue
+              parts=m.group('prefix').split('_')
+              if len(parts)<2:continue
+              family='_'.join(parts[:-1]);dm=dim.search(family+'_')
+              if not dm:continue
+              D=float(dm.group('D'));P=float(dm.group('P'))
+              if family.startswith('ancf_125x'):
+                  D=12.5
+                  if family=='ancf_125x75':P=7.5
+              entries.append({'url':urljoin(base,href),'filename':name,'family':family,'diameter_in':D,'pitch_in':P,'rpm':int(m.group('rpm'))})
+          by={}
+          for row in entries:by.setdefault(row['family'],[]).append(row)
+          families=[]
+          for fam,rows in sorted(by.items()):
+              seen=set();uniq=[]
+              for row in sorted(rows,key=lambda x:(x['rpm'],x['url'])):
+                  if row['url'] in seen:continue
+                  seen.add(row['url']);uniq.append(row)
+              if len(uniq)>=4:families.append({'family':fam,'diameter_in':uniq[0]['diameter_in'],'pitch_in':uniq[0]['pitch_in'],'run_count':len(uniq),'runs':uniq})
+          payload={'source_index':os.environ['V3_INDEX'],'corrected_12p5_geometry':True,'family_count':len(families),'run_count':sum(x['run_count'] for x in families),'families':families};Path(os.environ['OUT']).write_text(json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n')
+          if len(families)!=40 or sum(x['run_count'] for x in families)!=279:raise RuntimeError('training inventory changed')
+          PY
+      - name: Retrieve consumed training measurements
+        if: steps.eligible.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3data";export INV="$RUNNER_TEMP/inventory.json" DATADIR="$RUNNER_TEMP/v3data"
+          python - <<'PY' > "$RUNNER_TEMP/download.tsv"
+          import json,os
+          for f in json.load(open(os.environ['INV']))['families']:
+              for r in f['runs']:print(r['url']+'\t'+r['filename'])
+          PY
+          cat "$RUNNER_TEMP/download.tsv" | xargs -P 16 -d '\n' -I{} bash -c '
+            line="$1";url="${line%%$'"'"'\t'"'"'*}";name="${line#*$'"'"'\t'"'"'}";
+            curl --fail --silent --show-error -L --retry 4 "$url" -o "$DATADIR/$name";test -s "$DATADIR/$name"
+          ' _ {}
+          test "$(find "$RUNNER_TEMP/v3data" -type f|wc -l)" -eq 279
+      - name: Build and hash low-rank frozen package without ENOLA measurement access
+        if: steps.eligible.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .causal-loom-v019/lowrank_frozen
+          python .causal-loom-v019/build_lowrank_frozen_package.py \
+            --development-summary .causal-loom-v019/lowrank_v2_development_result/development_summary.json \
+            --metadata-summary .causal-loom-v019/enola_metadata/metadata_summary.json \
+            --shared-module .causal-loom-v019/develop_projective_transport_atlas.py \
+            --lowrank-module .causal-loom-v019/develop_lowrank_projective_atlas.py \
+            --frozen-runner .causal-loom-v019/run_v019_lowrank_enola_frozen.py \
+            --inventory "$RUNNER_TEMP/inventory.json" \
+            --data-dir "$RUNNER_TEMP/v3data" \
+            --output-dir .causal-loom-v019/lowrank_frozen
+          find .causal-loom-v019/lowrank_frozen -type f ! -name SHA256SUMS.txt -print0|sort -z|xargs -0 sha256sum > .causal-loom-v019/lowrank_frozen/SHA256SUMS.txt
+      - name: Commit immutable low-rank frozen package
+        if: steps.eligible.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          git config user.name 'Causal Loom Evidence Bot';git config user.email 'actions@users.noreply.github.com'
+          git add .causal-loom-v019/lowrank_frozen
+          git commit -m 'Freeze low-rank tangent atlas before ENOLA measurement access'
+          git push origin HEAD:causal-loom-v019-projective-atlas-enola-20260831
