@@ -1,0 +1,12 @@
+{
+  "measurement_payloads_opened": false,
+  "nested_members": [
+    "B0005.mat",
+    "B0006.mat",
+    "B0007.mat",
+    "B0018.mat",
+    "README.txt"
+  ],
+  "note": "Only ZIP central-directory names were inspected; no .mat bytes were opened before the frozen runner.",
+  "outer_member": "5. Battery Data Set/1. BatteryAgingARC-FY08Q4.zip"
+}

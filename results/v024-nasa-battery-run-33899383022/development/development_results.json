@@ -1,0 +1,747 @@
+{
+  "all_configuration_summaries": [
+    {
+      "blend_penalty": 0.03,
+      "clock_regularization": 0.1,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.9829168226120714
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.0
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.3
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 0.9988105960602659
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.11666666666666667
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.9829168226120714,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.0,
+          "win_fraction": 0.3
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.3
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 0.9988105960602659,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.11666666666666667
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.03,
+      "clock_regularization": 0.03,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.983918737563574
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.0
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.31666666666666665
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 0.9994217896274177
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.13333333333333333
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.983918737563574,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.0,
+          "win_fraction": 0.31666666666666665
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.31666666666666665
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 0.9994217896274177,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.13333333333333333
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.03,
+      "clock_regularization": 0.01,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.984424590397064
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.0
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.31666666666666665
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 0.9987710579240185
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.13333333333333333
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.984424590397064,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.0,
+          "win_fraction": 0.31666666666666665
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.31666666666666665
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 0.9987710579240185,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.13333333333333333
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.01,
+      "clock_regularization": 0.1,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.9860442847127207
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.0123378857504353
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.26666666666666666
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0071610811146405
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.13333333333333333
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.9860442847127207,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.0123378857504353,
+          "win_fraction": 0.26666666666666666
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.4166666666666667
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0071610811146405,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.13333333333333333
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.01,
+      "clock_regularization": 0.03,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.9875081276790663
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.024499091824148
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.25
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0083801130968955
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.13333333333333333
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.9875081276790663,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.024499091824148,
+          "win_fraction": 0.25
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.4166666666666667
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0083801130968955,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.13333333333333333
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.01,
+      "clock_regularization": 0.01,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 0.9890600938400256
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": true,
+          "threshold": 1.1,
+          "value": 1.0379330654322179
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.26666666666666666
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0077506489445174
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.13333333333333333
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 0.9890600938400256,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.0379330654322179,
+          "win_fraction": 0.26666666666666666
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.0,
+          "median": 0.0,
+          "positive_fraction": 0.4166666666666667
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0077506489445174,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.13333333333333333
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.0,
+      "clock_regularization": 0.03,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 1.009750098477426
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": false,
+          "threshold": 1.1,
+          "value": 1.1262761289966938
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.15
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0185399743857653
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.15
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 1.009750098477426,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.1262761289966938,
+          "win_fraction": 0.15
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.23333333333333334,
+          "median": 0.0,
+          "positive_fraction": 0.45
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0185399743857653,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.15
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.0,
+      "clock_regularization": 0.1,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 1.0101670901040103
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": false,
+          "threshold": 1.1,
+          "value": 1.1113190923261294
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.13333333333333333
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0153675175916226
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.15
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09473628580151966,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 1.0101670901040103,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.1113190923261294,
+          "win_fraction": 0.13333333333333333
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.21666666666666667,
+          "median": 0.0,
+          "positive_fraction": 0.45
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0153675175916226,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.15
+        },
+        "valid_target_cycles": 60
+      }
+    },
+    {
+      "blend_penalty": 0.0,
+      "clock_regularization": 0.01,
+      "development_pass": false,
+      "gates": {
+        "minimum_valid_target_cycles": {
+          "pass": true,
+          "threshold": 20,
+          "value": 60
+        },
+        "safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.95,
+          "value": 1.0131228947713111
+        },
+        "safe_vs_local_median_ratio_lte": {
+          "pass": false,
+          "threshold": 0.98,
+          "value": 1.0
+        },
+        "safe_vs_local_p90_ratio_lte": {
+          "pass": false,
+          "threshold": 1.1,
+          "value": 1.1323553857946582
+        },
+        "safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.55,
+          "value": 0.15
+        },
+        "tail_safe_vs_local_geometric_mean_ratio_lte": {
+          "pass": false,
+          "threshold": 0.85,
+          "value": 1.0167929314285462
+        },
+        "tail_safe_vs_local_win_fraction_gte": {
+          "pass": false,
+          "threshold": 0.6,
+          "value": 0.15
+        },
+        "zero_catastrophic_failures": {
+          "pass": true,
+          "threshold": true,
+          "value": 0
+        }
+      },
+      "summary": {
+        "catastrophic_failures": 0,
+        "median_absolute_joint_error": 0.09527976369333205,
+        "safe_vs_local": {
+          "geometric_mean_ratio": 1.0131228947713111,
+          "median_ratio": 1.0,
+          "n": 60,
+          "p90_ratio": 1.1323553857946582,
+          "win_fraction": 0.15
+        },
+        "selected_lambda": {
+          "full_transport_fraction": 0.25,
+          "median": 0.0,
+          "positive_fraction": 0.45
+        },
+        "tail_safe_vs_local": {
+          "geometric_mean_ratio": 1.0167929314285462,
+          "median_ratio": 1.0,
+          "n": 60,
+          "win_fraction": 0.15
+        },
+        "valid_target_cycles": 60
+      }
+    }
+  ],
+  "archive_sha256": "f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e",
+  "development_pass": false,
+  "fold_library_stats": [
+    {
+      "library": {
+        "temperature_stats": {
+          "curve_count": 30,
+          "median_projective_correlation": 0.9790896158694038,
+          "minimum_projective_correlation": 0.02049195098417712
+        },
+        "training_cells": [
+          "B0006"
+        ],
+        "training_cycle_count": 30,
+        "voltage_stats": {
+          "curve_count": 30,
+          "median_projective_correlation": 0.9158525049529674,
+          "minimum_projective_correlation": 0.06781013491854723
+        }
+      },
+      "target_cell": "B0005"
+    },
+    {
+      "library": {
+        "temperature_stats": {
+          "curve_count": 30,
+          "median_projective_correlation": 0.8539374172295926,
+          "minimum_projective_correlation": 0.3277837480610719
+        },
+        "training_cells": [
+          "B0005"
+        ],
+        "training_cycle_count": 30,
+        "voltage_stats": {
+          "curve_count": 30,
+          "median_projective_correlation": 0.9264956509806515,
+          "minimum_projective_correlation": 0.4733937378585874
+        }
+      },
+      "target_cell": "B0006"
+    }
+  ],
+  "gates": {
+    "minimum_valid_target_cycles": {
+      "pass": true,
+      "threshold": 20,
+      "value": 60
+    },
+    "safe_vs_local_geometric_mean_ratio_lte": {
+      "pass": false,
+      "threshold": 0.95,
+      "value": 0.9829168226120714
+    },
+    "safe_vs_local_median_ratio_lte": {
+      "pass": false,
+      "threshold": 0.98,
+      "value": 1.0
+    },
+    "safe_vs_local_p90_ratio_lte": {
+      "pass": true,
+      "threshold": 1.1,
+      "value": 1.0
+    },
+    "safe_vs_local_win_fraction_gte": {
+      "pass": false,
+      "threshold": 0.55,
+      "value": 0.3
+    },
+    "tail_safe_vs_local_geometric_mean_ratio_lte": {
+      "pass": false,
+      "threshold": 0.85,
+      "value": 0.9988105960602659
+    },
+    "tail_safe_vs_local_win_fraction_gte": {
+      "pass": false,
+      "threshold": 0.6,
+      "value": 0.11666666666666667
+    },
+    "zero_catastrophic_failures": {
+      "pass": true,
+      "threshold": true,
+      "value": 0
+    }
+  },
+  "protocol_id": "causal-loom-v0.24-nasa-projective-mechanism-transport",
+  "selected_configuration": {
+    "blend_penalty": 0.03,
+    "clock_regularization": 0.1
+  },
+  "stage": "development-lock",
+  "summary": {
+    "catastrophic_failures": 0,
+    "median_absolute_joint_error": 0.09473628580151966,
+    "safe_vs_local": {
+      "geometric_mean_ratio": 0.9829168226120714,
+      "median_ratio": 1.0,
+      "n": 60,
+      "p90_ratio": 1.0,
+      "win_fraction": 0.3
+    },
+    "selected_lambda": {
+      "full_transport_fraction": 0.0,
+      "median": 0.0,
+      "positive_fraction": 0.3
+    },
+    "tail_safe_vs_local": {
+      "geometric_mean_ratio": 0.9988105960602659,
+      "median_ratio": 1.0,
+      "n": 60,
+      "win_fraction": 0.11666666666666667
+    },
+    "valid_target_cycles": 60
+  }
+}

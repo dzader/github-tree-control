@@ -1,0 +1,3 @@
+The original workflow failed during YAML validation before any job or measurement access.
+Wrapper r2 downloaded the official outer ZIP but the unchanged runner found no top-level cell files; no .mat member was opened.
+Wrapper r3 only copies the immutable nested packaging archive named in NESTED_ARCHIVE_MEMBER and leaves the frozen protocol and executable byte-for-byte unchanged.

@@ -1,0 +1,107 @@
+{
+  "protocol_id": "causal-loom-v0.24-nasa-projective-mechanism-transport",
+  "frozen_before_measurement_access": true,
+  "research_question": "Can a reusable projective discharge mechanism with a low-dimensional monotone mechanism clock and probe-certified fallback outperform matched five-probe local interpolation on unseen physical battery cells?",
+  "dataset": {
+    "name": "NASA Ames Prognostics Center of Excellence Battery Data Set",
+    "archive_url": "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip",
+    "development_cells": ["B0005", "B0006"],
+    "untouched_holdout_cells": ["B0007", "B0018"],
+    "payload_access_rule": "The development job may extract only B0005.mat and B0006.mat. The holdout job is a separate job and may extract B0007.mat and B0018.mat only after a hashed candidate lock is produced by a passing development job."
+  },
+  "physical_coordinate": {
+    "name": "absolute_discharged_charge_Ah",
+    "definition": "q_Ah = cumulative trapezoidal integral of abs(Current_measured) over Time divided by 3600",
+    "forbidden_normalization": "No per-trajectory output normalization or trajectory-specific error scale is permitted.",
+    "mechanism_clock": "s = sigmoid(alpha + beta * logit(clamp(q / C_probe, eps, 1-eps)))",
+    "probe_capacity_estimate": "C_probe is the robust median of q_probe / probe_fraction over the five predeclared probes."
+  },
+  "cycle_selection": {
+    "cycle_type": "discharge",
+    "minimum_raw_points": 60,
+    "minimum_charge_span_Ah": 0.25,
+    "minimum_voltage_range_V": 0.35,
+    "maximum_cycles_per_cell": 30,
+    "selection_if_over_limit": "evenly spaced by discharge-cycle order, including endpoints",
+    "evaluation_cycle_stride": 1
+  },
+  "outputs": {
+    "voltage": {
+      "source": "Voltage_measured",
+      "fixed_physical_scale": 1.0,
+      "prediction_clip": [1.5, 5.0]
+    },
+    "temperature": {
+      "source": "Temperature_measured",
+      "fixed_physical_scale": 20.0,
+      "prediction_clip": [-20.0, 100.0]
+    }
+  },
+  "probes": {
+    "count": 5,
+    "rank_fractions": [0.06, 0.27, 0.50, 0.73, 0.92],
+    "selection": "nearest unique sample indices by rank; no output-value-dependent placement",
+    "scoring": "all finite non-probe samples; tail is every scored sample after the final probe"
+  },
+  "mechanism_library": {
+    "grid_points": 241,
+    "grid_min": 0.0,
+    "grid_max": 1.0,
+    "projective_preprocessing": "Subtract each training curve's endpoint chord, L2-normalize the nonlinear residual, align sign to a running template, then use the pointwise median as h0.",
+    "transport_basis": "h1 is the normalized derivative of h0 with respect to logit(s), orthogonalized against h0. The candidate uses h0(phi)+tau*h1(phi).",
+    "training_only_full_cycle_access": true
+  },
+  "candidate_search": {
+    "clock_alpha_offsets": [-0.30, -0.20, -0.10, 0.0, 0.10, 0.20, 0.30],
+    "clock_beta_values": [0.75, 0.875, 1.0, 1.125, 1.25],
+    "shared_tangent_values": [-0.45, -0.30, -0.15, 0.0, 0.15, 0.30, 0.45],
+    "temperature_lag_values": [0.0, 0.03, 0.06, 0.09],
+    "clock_regularization_values": [0.01, 0.03, 0.10],
+    "safe_blend_penalty_values": [0.0, 0.01, 0.03],
+    "development_selection": "Choose one configuration solely by leave-one-cell-out development performance on B0005/B0006, minimizing geometric-mean safe-candidate/local error ratio subject to all development risk gates.",
+    "target_fit": "For each fixed transport tuple, solve output-specific ridge coefficients for 1, s, and the transported nonlinear mechanism using only probe observations. Clock, tangent, and thermal lag are shared across voltage and temperature.",
+    "safe_fallback": "Choose a convex blend between transported mechanism and the matched local control from lambda in [0,0.25,0.5,0.75,1] using leave-one-probe-out error plus the frozen blend penalty. Lambda=0 is the exact local fallback."
+  },
+  "matched_controls": {
+    "local_control": "For each output independently, choose PCHIP or a degree-3 polynomial by leave-one-probe-out error, then refit that family on all five probes.",
+    "fixed_clock_control": "Same projective mechanism and write fit with alpha=0, beta=1, tau=0, temperature_lag=0 and no transported clock search.",
+    "direct_polynomial_control": "Joint context-free degree-3 output polynomials using the same five probes."
+  },
+  "metrics": {
+    "cycle_joint_error": "sqrt(mean(((Vhat-V)/1.0)^2 + ((That-T)/20.0)^2)/2) over scored samples",
+    "tail_joint_error": "same fixed-scale metric on scored samples after the final probe",
+    "aggregate_ratio": "candidate error divided by matched local-control error, aggregated by median, geometric mean, win fraction, and 90th percentile",
+    "catastrophic": "nonfinite prediction or cycle_joint_error greater than max(0.50, 4 times local-control error)"
+  },
+  "development_gates": {
+    "minimum_valid_target_cycles": 20,
+    "zero_catastrophic_failures": true,
+    "safe_vs_local_median_ratio_lte": 0.98,
+    "safe_vs_local_geometric_mean_ratio_lte": 0.95,
+    "safe_vs_local_win_fraction_gte": 0.55,
+    "safe_vs_local_p90_ratio_lte": 1.10,
+    "tail_safe_vs_local_geometric_mean_ratio_lte": 0.85,
+    "tail_safe_vs_local_win_fraction_gte": 0.60
+  },
+  "holdout_primary_gates": {
+    "minimum_valid_target_cycles": 20,
+    "zero_catastrophic_failures": true,
+    "median_absolute_joint_error_lte": 0.10,
+    "safe_vs_local_median_ratio_lte": 1.00,
+    "safe_vs_local_geometric_mean_ratio_lte": 0.98,
+    "safe_vs_local_win_fraction_gte": 0.52,
+    "tail_safe_vs_local_geometric_mean_ratio_lte": 0.88,
+    "tail_safe_vs_local_win_fraction_gte": 0.55
+  },
+  "holdout_strong_claim_gates": {
+    "safe_vs_local_geometric_mean_ratio_lte": 0.92,
+    "safe_vs_local_win_fraction_gte": 0.65,
+    "tail_safe_vs_local_geometric_mean_ratio_lte": 0.75,
+    "tail_safe_vs_local_win_fraction_gte": 0.70
+  },
+  "evidence_policy": {
+    "development_failure": "Do not open B0007 or B0018; preserve the negative result.",
+    "holdout_failure": "Preserve the first result permanently; any later model work treats B0007/B0018 as consumed development data and must reserve new cells before payload access.",
+    "reruns": "No rerun of the frozen holdout is permitted for scientific decision making."
+  }
+}
