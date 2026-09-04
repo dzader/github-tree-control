@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/runner/work/github-tree-control/github-tree-control/.causal-loom-v024/run_v024_battery_transport.py", line 837, in main
+    return run_development(Path(args.archive), Path(args.protocol), Path(args.output_dir))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/github-tree-control/github-tree-control/.causal-loom-v024/run_v024_battery_transport.py", line 668, in run_development
+    extracted.append(extract_member(archive, cell, mat))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/github-tree-control/github-tree-control/.causal-loom-v024/run_v024_battery_transport.py", line 153, in extract_member
+    raise RuntimeError(f"Expected one {cell}.mat member, found {matches}")
+RuntimeError: Expected one B0005.mat member, found []

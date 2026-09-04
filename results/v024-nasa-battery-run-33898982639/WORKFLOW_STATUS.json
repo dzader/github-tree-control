@@ -1,0 +1,13 @@
+{
+  "development_authorized": false,
+  "development_exit_status": "1",
+  "github_run_id": 33898982639,
+  "holdout_exit_status": "",
+  "holdout_job_result": "skipped",
+  "holdout_primary_pass": false,
+  "holdout_strong_pass": false,
+  "original_frozen_commit": "131b1f166856c8e7d30dfb886324e73671d5b610",
+  "protocol_git_blob_sha": "82be9cace8fe8e53b91556f6445c006674df027e",
+  "runner_git_blob_sha": "3fb2f113b3b5a94370bd23696eb604f7fa36c819",
+  "wrapper_repair_only": true
+}

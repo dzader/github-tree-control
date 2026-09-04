@@ -1,0 +1,2 @@
+82be9cace8fe8e53b91556f6445c006674df027e  .causal-loom-v024/V024_FROZEN_PROTOCOL.json
+3fb2f113b3b5a94370bd23696eb604f7fa36c819  .causal-loom-v024/run_v024_battery_transport.py
