@@ -1,0 +1,107 @@
+{
+  "protocol_id": "causal-loom-v0.25-projective-hybrid-mechanism-atlas-nasa-battery",
+  "research_question": "Can a reusable event-stitched projective mechanism atlas, with a shared low-dimensional health coordinate inferred from five output probes, outperform strong local and generic hybrid controls on independent battery cells while preserving an exact probe-certified fallback?",
+  "claim_boundary": "A pass supports a reusable hybrid discharge/relaxation mechanism atlas and a probe-inferred chart coordinate across NASA battery cells. It does not establish online remaining-life prediction, causal identifiability under arbitrary current policies, universality across battery chemistries, or a general AI breakthrough.",
+  "source": {
+    "name": "NASA Ames Prognostics Center of Excellence Battery Data Set, BatteryAgingARC-FY08Q4",
+    "outer_url": "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip",
+    "outer_member": "5. Battery Data Set/1. BatteryAgingARC-FY08Q4.zip",
+    "nested_archive_sha256": "f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e"
+  },
+  "access_policy": {
+    "development_cells": ["B0005", "B0006"],
+    "holdout_cells": ["B0007", "B0018"],
+    "holdout_access_condition": "development_pass must be true and the candidate-lock SHA-256 must verify",
+    "holdout_single_use": true
+  },
+  "cycle_selection": {
+    "minimum_raw_points": 60,
+    "minimum_charge_span_Ah": 0.25,
+    "minimum_voltage_range_V": 0.35,
+    "maximum_cycles_per_cell": 30
+  },
+  "inputs": {
+    "current_off_threshold_A": 0.2,
+    "charge_coordinate": "q(t)=integral abs(I) dt / 3600",
+    "hybrid_coordinate": "z=q/q_off for samples through the final abs(I)>threshold event; z=1+(t-t_off)/(t_end-t_off) afterward",
+    "offline_conditioning_note": "The complete measured time/current trajectory is treated as an observed intervention input. This is an offline response-identification test, not an online prognosis test."
+  },
+  "outputs": {
+    "voltage": {"scale": 1.0, "clip": [2.0, 5.0]},
+    "temperature": {"scale": 20.0, "clip": [0.0, 80.0]}
+  },
+  "probes": {
+    "count": 5,
+    "rank_fractions": [0.06, 0.27, 0.50, 0.73, 0.92],
+    "selection_is_output_blind": true
+  },
+  "atlas": {
+    "grid_min": 0.0,
+    "grid_max": 2.0,
+    "grid_points": 401,
+    "projective_quotient": "subtract endpoint chord, remove residual mean, divide by RMS norm, sign-align",
+    "base_mechanism": "pointwise median normalized residual",
+    "tangent_mechanism": "first SVD right singular vector after removing the base mechanism, orthogonalized and RMS normalized",
+    "tangent_orientation": "orient training scores to increase with discharge order",
+    "candidate": "for each output y=a+b*(z/2)+c*(h0(z)+eta*h1(z)); eta is shared across voltage and temperature",
+    "eta_grid": [-1.5, 1.5, 0.05],
+    "coefficient_ridge": 0.01,
+    "eta_regularization": 0.0001
+  },
+  "controls": {
+    "strong_local": "for each output independently choose pchip or cubic ridge polynomial in normalized time, cumulative charge, sample rank, or hybrid coordinate by leave-one-probe-out error; refit on all five probes",
+    "generic_hybrid_cubic": "degree-3 ridge polynomial in the same hybrid coordinate, fitted independently to each output using the same five probes",
+    "no_event_ablation": "development-only diagnostic using the same projective atlas construction on normalized cumulative charge without a relaxation chart"
+  },
+  "safe_fallback": {
+    "lambda_grid": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "blend": "safe=(1-lambda)*strong_local+lambda*atlas",
+    "selection": "joint leave-one-probe-out voltage/temperature error",
+    "blend_penalty": 0.001,
+    "tie_break": "smaller lambda"
+  },
+  "scoring": {
+    "primary": "RMS joint error on every non-probe raw sample using fixed physical scales",
+    "tail": "same metric strictly after the final probe",
+    "relaxation": "same metric strictly after the detected current-off event",
+    "no_per_trajectory_normalization": true,
+    "catastrophic": "nonfinite safe error or safe error greater than max(0.50, 4*local error)"
+  },
+  "development_gates": {
+    "minimum_valid_cycles": 50,
+    "zero_catastrophic_failures": true,
+    "safe_vs_local_geometric_mean_ratio_lte": 0.70,
+    "safe_vs_local_median_ratio_lte": 0.80,
+    "safe_vs_local_win_fraction_gte": 0.80,
+    "safe_vs_local_p90_ratio_lte": 1.05,
+    "tail_safe_vs_local_geometric_mean_ratio_lte": 0.70,
+    "tail_safe_vs_local_win_fraction_gte": 0.80,
+    "relaxation_safe_vs_local_geometric_mean_ratio_lte": 0.70,
+    "relaxation_safe_vs_local_win_fraction_gte": 0.75,
+    "atlas_vs_generic_hybrid_cubic_geometric_mean_ratio_lte": 0.75,
+    "atlas_vs_generic_hybrid_cubic_win_fraction_gte": 0.85,
+    "minimum_cross_cell_h0_abs_correlation": 0.95,
+    "minimum_cross_cell_h1_abs_correlation": 0.90,
+    "eta_vs_qoff_pearson_lte": -0.65
+  },
+  "holdout_gates": {
+    "minimum_valid_cycles": 24,
+    "zero_catastrophic_failures": true,
+    "median_safe_joint_error_lte": 0.10,
+    "safe_vs_local_geometric_mean_ratio_lte": 0.80,
+    "safe_vs_local_median_ratio_lte": 0.90,
+    "safe_vs_local_win_fraction_gte": 0.70,
+    "safe_vs_local_p90_ratio_lte": 1.10,
+    "tail_safe_vs_local_geometric_mean_ratio_lte": 0.85,
+    "tail_safe_vs_local_win_fraction_gte": 0.65,
+    "relaxation_safe_vs_local_geometric_mean_ratio_lte": 0.85,
+    "relaxation_safe_vs_local_win_fraction_gte": 0.65,
+    "atlas_vs_generic_hybrid_cubic_geometric_mean_ratio_lte": 0.85,
+    "atlas_vs_generic_hybrid_cubic_win_fraction_gte": 0.65
+  },
+  "strong_claim_gates": {
+    "eta_vs_qoff_pearson_lte": -0.55,
+    "eta_vs_discharge_order_pearson_gte": 0.55
+  },
+  "runtime": {"python": "3.11", "numpy": "2.1.3", "scipy": "1.14.1"}
+}
