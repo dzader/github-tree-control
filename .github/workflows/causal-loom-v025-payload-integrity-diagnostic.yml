@@ -1,0 +1,37 @@
+name: Causal Loom v0.25 payload integrity diagnostic
+
+on:
+  push:
+    branches:
+      - causal-loom-v025-hybrid-atlas-20260904
+    paths:
+      - '.github/workflows/causal-loom-v025-payload-integrity-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+      - name: Report encoded and decoded identities without data access
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo PROTOCOL_GIT_BLOB=$(git hash-object .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64)
+          echo RUNNER_GIT_BLOB=$(git hash-object .causal-loom-v025/run_v025_hybrid_atlas.py.gz.b64)
+          echo PROTOCOL_PAYLOAD_SHA256=$(sha256sum .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64 | cut -d' ' -f1)
+          echo RUNNER_PAYLOAD_SHA256=$(sha256sum .causal-loom-v025/run_v025_hybrid_atlas.py.gz.b64 | cut -d' ' -f1)
+          mkdir -p "$RUNNER_TEMP/v025"
+          base64 --decode --ignore-garbage .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64 | gzip --decompress > "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json"
+          base64 --decode --ignore-garbage .causal-loom-v025/run_v025_hybrid_atlas.py.gz.b64 | gzip --decompress > "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py"
+          echo PROTOCOL_DECODED_SHA256=$(sha256sum "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json" | cut -d' ' -f1)
+          echo RUNNER_DECODED_SHA256=$(sha256sum "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" | cut -d' ' -f1)
+          wc -c .causal-loom-v025/*.gz.b64 "$RUNNER_TEMP/v025/"*
+          python -m py_compile "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py"
+          echo NO_DATA_ACCESSED
