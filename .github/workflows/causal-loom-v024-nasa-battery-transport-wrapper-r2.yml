@@ -1,0 +1,332 @@
+name: Causal Loom v0.24 frozen NASA battery transport wrapper r2
+
+on:
+  push:
+    branches:
+      - causal-loom-v024-battery-transport-20260831
+    paths:
+      - '.github/workflows/causal-loom-v024-nasa-battery-transport-wrapper-r2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: causal-loom-v024-frozen-nasa-battery-r2
+  cancel-in-progress: false
+
+env:
+  NASA_URL: 'https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip'
+  ORIGINAL_FROZEN_COMMIT: '131b1f166856c8e7d30dfb886324e73671d5b610'
+  PROTOCOL_BLOB_SHA: '82be9cace8fe8e53b91556f6445c006674df027e'
+  RUNNER_BLOB_SHA: '3fb2f113b3b5a94370bd23696eb604f7fa36c819'
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  development-lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    outputs:
+      authorized: ${{ steps.decision.outputs.authorized }}
+      development_status: ${{ steps.execute.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify wrapper-only repair and frozen scientific blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .causal-loom-v024/V024_FROZEN_PROTOCOL.json)" = "$PROTOCOL_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v024/run_v024_battery_transport.py)" = "$RUNNER_BLOB_SHA"
+          mkdir -p "$RUNNER_TEMP/preaccess"
+          printf '%s\n' "$ORIGINAL_FROZEN_COMMIT" > "$RUNNER_TEMP/preaccess/ORIGINAL_FROZEN_COMMIT.txt"
+          printf '%s  %s\n' "$PROTOCOL_BLOB_SHA" '.causal-loom-v024/V024_FROZEN_PROTOCOL.json' > "$RUNNER_TEMP/preaccess/FROZEN_GIT_BLOBS.txt"
+          printf '%s  %s\n' "$RUNNER_BLOB_SHA" '.causal-loom-v024/run_v024_battery_transport.py' >> "$RUNNER_TEMP/preaccess/FROZEN_GIT_BLOBS.txt"
+          sha256sum .causal-loom-v024/V024_FROZEN_PROTOCOL.json .causal-loom-v024/run_v024_battery_transport.py > "$RUNNER_TEMP/preaccess/FROZEN_SHA256.txt"
+          printf '%s\n' 'The original workflow failed during YAML validation before any job or measurement access. This r2 changes only the workflow wrapper.' > "$RUNNER_TEMP/preaccess/WRAPPER_REPAIR_NOTE.txt"
+          python -m py_compile .causal-loom-v024/run_v024_battery_transport.py
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deterministic numerical dependencies
+        run: pip install numpy==2.1.3 scipy==1.14.1
+
+      - name: Run executable self-test before measurement access
+        run: python .causal-loom-v024/run_v024_battery_transport.py --self-test
+
+      - name: Retrieve exact public archive without opening members
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 5 --retry-all-errors "$NASA_URL" -o "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
+          test -s "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
+          sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/ARCHIVE_SHA256.txt"
+          stat --printf='%s\n' "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/ARCHIVE_BYTES.txt"
+          printf '%s\n' 'No ZIP member was opened before the frozen development executable began.' > "$RUNNER_TEMP/preaccess/PREACCESS_STATUS.txt"
+
+      - name: Execute development-lock stage on B0005 and B0006 only
+        id: execute
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v024-development-output
+          python .causal-loom-v024/run_v024_battery_transport.py \
+            --stage development-lock \
+            --archive "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" \
+            --protocol .causal-loom-v024/V024_FROZEN_PROTOCOL.json \
+            --output-dir causal-loom-v024-development-output \
+            > "$RUNNER_TEMP/development_stdout.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v024-development-output
+          cp "$RUNNER_TEMP/development_stdout.log" causal-loom-v024-development-output/stdout.log
+          cp -r "$RUNNER_TEMP/preaccess" causal-loom-v024-development-output/preaccess
+          cp .causal-loom-v024/V024_FROZEN_PROTOCOL.json causal-loom-v024-development-output/
+          cp .causal-loom-v024/run_v024_battery_transport.py causal-loom-v024-development-output/
+          echo "$status" > causal-loom-v024-development-output/EXECUTION_EXIT_STATUS.txt
+          find causal-loom-v024-development-output -type f ! -name FILES_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > causal-loom-v024-development-output/FILES_SHA256SUMS.txt
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/development_stdout.log"
+
+      - name: Enforce candidate-lock authorization gate
+        id: decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          authorized=false
+          if [ -s causal-loom-v024-development-output/development_results.json ] && [ -s causal-loom-v024-development-output/CANDIDATE_LOCK.json ] && [ -s causal-loom-v024-development-output/CANDIDATE_LOCK_SHA256.txt ]; then
+            authorized=$(python - <<'PY'
+          import json
+          d=json.load(open('causal-loom-v024-development-output/development_results.json'))
+          print('true' if d.get('development_pass') is True else 'false')
+          PY
+          )
+          fi
+          echo "authorized=$authorized" >> "$GITHUB_OUTPUT"
+          echo "HOLDOUT_AUTHORIZED=$authorized"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v024-r2-development-lock-evidence
+          path: causal-loom-v024-development-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+  frozen-holdout:
+    needs: development-lock
+    if: needs.development-lock.outputs.authorized == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      primary_pass: ${{ steps.decision.outputs.primary_pass }}
+      strong_pass: ${{ steps.decision.outputs.strong_pass }}
+      holdout_status: ${{ steps.execute.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify frozen scientific blobs again
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object .causal-loom-v024/V024_FROZEN_PROTOCOL.json)" = "$PROTOCOL_BLOB_SHA"
+          test "$(git hash-object .causal-loom-v024/run_v024_battery_transport.py)" = "$RUNNER_BLOB_SHA"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: causal-loom-v024-r2-development-lock-evidence
+          path: development-evidence
+
+      - name: Verify immutable candidate lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s development-evidence/CANDIDATE_LOCK.json
+          test -s development-evidence/CANDIDATE_LOCK_SHA256.txt
+          expected=$(cut -d' ' -f1 development-evidence/CANDIDATE_LOCK_SHA256.txt)
+          actual=$(sha256sum development-evidence/CANDIDATE_LOCK.json | cut -d' ' -f1)
+          test "$expected" = "$actual"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install numpy==2.1.3 scipy==1.14.1
+
+      - name: Retrieve and byte-match the development archive before holdout access
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 5 --retry-all-errors "$NASA_URL" -o "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
+          actual=$(sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" | cut -d' ' -f1)
+          expected=$(python - <<'PY'
+          import json
+          print(json.load(open('development-evidence/CANDIDATE_LOCK.json'))['archive_sha256'])
+          PY
+          )
+          test "$actual" = "$expected"
+
+      - name: Execute first and permanent B0007/B0018 holdout
+        id: execute
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v024-holdout-output
+          python .causal-loom-v024/run_v024_battery_transport.py \
+            --stage holdout \
+            --archive "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" \
+            --protocol .causal-loom-v024/V024_FROZEN_PROTOCOL.json \
+            --candidate-lock development-evidence/CANDIDATE_LOCK.json \
+            --output-dir causal-loom-v024-holdout-output \
+            > "$RUNNER_TEMP/holdout_stdout.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v024-holdout-output
+          cp "$RUNNER_TEMP/holdout_stdout.log" causal-loom-v024-holdout-output/stdout.log
+          cp development-evidence/CANDIDATE_LOCK.json causal-loom-v024-holdout-output/
+          cp development-evidence/CANDIDATE_LOCK_SHA256.txt causal-loom-v024-holdout-output/
+          cp .causal-loom-v024/V024_FROZEN_PROTOCOL.json causal-loom-v024-holdout-output/
+          cp .causal-loom-v024/run_v024_battery_transport.py causal-loom-v024-holdout-output/
+          echo "$status" > causal-loom-v024-holdout-output/EXECUTION_EXIT_STATUS.txt
+          find causal-loom-v024-holdout-output -type f ! -name FILES_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > causal-loom-v024-holdout-output/FILES_SHA256SUMS.txt
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/holdout_stdout.log"
+
+      - name: Read frozen scientific verdict without changing it
+        id: decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          primary=false
+          strong=false
+          if [ -s causal-loom-v024-holdout-output/holdout_results.json ]; then
+            read -r primary strong < <(python - <<'PY'
+          import json
+          d=json.load(open('causal-loom-v024-holdout-output/holdout_results.json'))
+          print('true' if d.get('primary_pass') is True else 'false', 'true' if d.get('strong_claim_pass') is True else 'false')
+          PY
+          )
+          fi
+          echo "primary_pass=$primary" >> "$GITHUB_OUTPUT"
+          echo "strong_pass=$strong" >> "$GITHUB_OUTPUT"
+          echo "PRIMARY_PASS=$primary STRONG_PASS=$strong"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v024-r2-frozen-holdout-evidence
+          path: causal-loom-v024-holdout-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+  publish:
+    needs: [development-lock, frozen-holdout]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v024-battery-transport-20260831
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: causal-loom-v024-r2-development-lock-evidence
+          path: combined-evidence/development
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: causal-loom-v024-r2-frozen-holdout-evidence
+          path: combined-evidence/holdout
+
+      - name: Build compact canonical workflow status
+        shell: bash
+        env:
+          DEV_AUTH: ${{ needs.development-lock.outputs.authorized }}
+          DEV_STATUS: ${{ needs.development-lock.outputs.development_status }}
+          HOLDOUT_JOB_RESULT: ${{ needs.frozen-holdout.result }}
+          HOLDOUT_STATUS: ${{ needs.frozen-holdout.outputs.holdout_status }}
+          HOLDOUT_PRIMARY: ${{ needs.frozen-holdout.outputs.primary_pass }}
+          HOLDOUT_STRONG: ${{ needs.frozen-holdout.outputs.strong_pass }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          DEST="results/v024-nasa-battery-run-$RUN_ID"
+          mkdir -p "$DEST"
+          cp -r combined-evidence/. "$DEST"/
+          export DEST
+          python - <<'PY'
+          import json, os, pathlib
+          dest=pathlib.Path(os.environ['DEST'])
+          status={
+            'github_run_id': int(os.environ['RUN_ID']),
+            'original_frozen_commit': os.environ['ORIGINAL_FROZEN_COMMIT'],
+            'protocol_git_blob_sha': os.environ['PROTOCOL_BLOB_SHA'],
+            'runner_git_blob_sha': os.environ['RUNNER_BLOB_SHA'],
+            'wrapper_repair_only': True,
+            'development_authorized': os.environ.get('DEV_AUTH') == 'true',
+            'development_exit_status': os.environ.get('DEV_STATUS'),
+            'holdout_job_result': os.environ.get('HOLDOUT_JOB_RESULT'),
+            'holdout_exit_status': os.environ.get('HOLDOUT_STATUS'),
+            'holdout_primary_pass': os.environ.get('HOLDOUT_PRIMARY') == 'true',
+            'holdout_strong_pass': os.environ.get('HOLDOUT_STRONG') == 'true',
+          }
+          (dest/'WORKFLOW_STATUS.json').write_text(json.dumps(status,indent=2,sort_keys=True)+'\n')
+          PY
+          find "$DEST" -type f ! -name RELEASE_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > "$DEST/RELEASE_SHA256SUMS.txt"
+
+      - name: Commit immutable reports without retriggering the experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Bot'
+          git config user.email 'causal-loom-evidence@users.noreply.github.com'
+          git add results/
+          if ! git diff --cached --quiet; then
+            git commit -m "Preserve v0.24 NASA battery result run $GITHUB_RUN_ID"
+            git push origin HEAD:causal-loom-v024-battery-transport-20260831
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v024-r2-combined-frozen-evidence
+          path: combined-evidence
+          if-no-files-found: warn
+          retention-days: 90
+          compression-level: 6
+
+  scientific-verdict:
+    needs: [development-lock, frozen-holdout, publish]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Preserve the predeclared scientific verdict as workflow status
+        shell: bash
+        env:
+          DEV_AUTH: ${{ needs.development-lock.outputs.authorized }}
+          HOLDOUT_PRIMARY: ${{ needs.frozen-holdout.outputs.primary_pass }}
+        run: |
+          set -euo pipefail
+          if [ "$DEV_AUTH" != 'true' ]; then
+            echo 'SCIENTIFIC_FAILURE: development gates did not authorize holdout access.'
+            exit 2
+          fi
+          if [ "$HOLDOUT_PRIMARY" != 'true' ]; then
+            echo 'SCIENTIFIC_FAILURE: frozen holdout missed at least one primary gate.'
+            exit 2
+          fi
+          echo 'SCIENTIFIC_PRIMARY_PASS'
