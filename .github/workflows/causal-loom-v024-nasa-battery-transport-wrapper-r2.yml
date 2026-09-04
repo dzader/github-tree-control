@@ -1,4 +1,4 @@
-name: Causal Loom v0.24 frozen NASA battery transport wrapper r2
+name: Causal Loom v0.24 frozen NASA battery transport wrapper r3
 
 on:
   push:
@@ -13,11 +13,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: causal-loom-v024-frozen-nasa-battery-r2
+  group: causal-loom-v024-frozen-nasa-battery-r3
   cancel-in-progress: false
 
 env:
   NASA_URL: 'https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip'
+  NESTED_ARCHIVE_MEMBER: '5. Battery Data Set/1. BatteryAgingARC-FY08Q4.zip'
   ORIGINAL_FROZEN_COMMIT: '131b1f166856c8e7d30dfb886324e73671d5b610'
   PROTOCOL_BLOB_SHA: '82be9cace8fe8e53b91556f6445c006674df027e'
   RUNNER_BLOB_SHA: '3fb2f113b3b5a94370bd23696eb604f7fa36c819'
@@ -50,7 +51,11 @@ jobs:
           printf '%s  %s\n' "$PROTOCOL_BLOB_SHA" '.causal-loom-v024/V024_FROZEN_PROTOCOL.json' > "$RUNNER_TEMP/preaccess/FROZEN_GIT_BLOBS.txt"
           printf '%s  %s\n' "$RUNNER_BLOB_SHA" '.causal-loom-v024/run_v024_battery_transport.py' >> "$RUNNER_TEMP/preaccess/FROZEN_GIT_BLOBS.txt"
           sha256sum .causal-loom-v024/V024_FROZEN_PROTOCOL.json .causal-loom-v024/run_v024_battery_transport.py > "$RUNNER_TEMP/preaccess/FROZEN_SHA256.txt"
-          printf '%s\n' 'The original workflow failed during YAML validation before any job or measurement access. This r2 changes only the workflow wrapper.' > "$RUNNER_TEMP/preaccess/WRAPPER_REPAIR_NOTE.txt"
+          cat > "$RUNNER_TEMP/preaccess/WRAPPER_REPAIR_NOTE.txt" <<'EOF'
+          The original workflow failed during YAML validation before any job or measurement access.
+          Wrapper r2 downloaded the official outer ZIP but the unchanged runner found no top-level cell files; no .mat member was opened.
+          Wrapper r3 only copies the immutable nested packaging archive named in NESTED_ARCHIVE_MEMBER and leaves the frozen protocol and executable byte-for-byte unchanged.
+          EOF
           python -m py_compile .causal-loom-v024/run_v024_battery_transport.py
 
       - uses: actions/setup-python@v5
@@ -63,15 +68,48 @@ jobs:
       - name: Run executable self-test before measurement access
         run: python .causal-loom-v024/run_v024_battery_transport.py --self-test
 
-      - name: Retrieve exact public archive without opening members
+      - name: Retrieve exact official outer archive
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error -L --retry 5 --retry-all-errors "$NASA_URL" -o "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
           test -s "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
-          sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/ARCHIVE_SHA256.txt"
-          stat --printf='%s\n' "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/ARCHIVE_BYTES.txt"
-          printf '%s\n' 'No ZIP member was opened before the frozen development executable began.' > "$RUNNER_TEMP/preaccess/PREACCESS_STATUS.txt"
+          sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/OUTER_ARCHIVE_SHA256.txt"
+          stat --printf='%s\n' "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/preaccess/OUTER_ARCHIVE_BYTES.txt"
+
+      - name: Copy immutable nested packaging archive without opening cell payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, os, shutil, zipfile
+          from pathlib import Path
+
+          outer=Path(os.environ['RUNNER_TEMP'])/'NASA_Battery_Data_Set.zip'
+          nested=Path(os.environ['RUNNER_TEMP'])/'BatteryAgingARC-FY08Q4.zip'
+          member=os.environ['NESTED_ARCHIVE_MEMBER']
+          with zipfile.ZipFile(outer) as z:
+              matches=[name for name in z.namelist() if name == member]
+              if matches != [member]:
+                  raise RuntimeError(f'Expected exactly one packaging member {member!r}, found {matches!r}')
+              with z.open(member) as src, nested.open('wb') as dst:
+                  shutil.copyfileobj(src,dst)
+          digest=hashlib.sha256(nested.read_bytes()).hexdigest()
+          with zipfile.ZipFile(nested) as z:
+              members=sorted(z.namelist())
+          expected=sorted(['B0005.mat','B0006.mat','B0007.mat','B0018.mat','README.txt'])
+          if members != expected:
+              raise RuntimeError(f'Unexpected nested central-directory inventory: {members!r}')
+          pre=Path(os.environ['RUNNER_TEMP'])/'preaccess'
+          (pre/'NESTED_ARCHIVE_SHA256.txt').write_text(f'{digest}  BatteryAgingARC-FY08Q4.zip\n')
+          (pre/'NESTED_ARCHIVE_MEMBER_INVENTORY.json').write_text(json.dumps({
+              'outer_member': member,
+              'nested_members': members,
+              'measurement_payloads_opened': False,
+              'note': 'Only ZIP central-directory names were inspected; no .mat bytes were opened before the frozen runner.'
+          },indent=2,sort_keys=True)+'\n')
+          PY
+          test -s "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip"
 
       - name: Execute development-lock stage on B0005 and B0006 only
         id: execute
@@ -81,7 +119,7 @@ jobs:
           rm -rf causal-loom-v024-development-output
           python .causal-loom-v024/run_v024_battery_transport.py \
             --stage development-lock \
-            --archive "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" \
+            --archive "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" \
             --protocol .causal-loom-v024/V024_FROZEN_PROTOCOL.json \
             --output-dir causal-loom-v024-development-output \
             > "$RUNNER_TEMP/development_stdout.log" 2>&1
@@ -116,7 +154,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v024-r2-development-lock-evidence
+          name: causal-loom-v024-r3-development-lock-evidence
           path: causal-loom-v024-development-output
           if-no-files-found: error
           retention-days: 90
@@ -146,7 +184,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: causal-loom-v024-r2-development-lock-evidence
+          name: causal-loom-v024-r3-development-lock-evidence
           path: development-evidence
 
       - name: Verify immutable candidate lock
@@ -165,12 +203,22 @@ jobs:
 
       - run: pip install numpy==2.1.3 scipy==1.14.1
 
-      - name: Retrieve and byte-match the development archive before holdout access
+      - name: Reconstruct and byte-match the nested development archive before holdout access
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error -L --retry 5 --retry-all-errors "$NASA_URL" -o "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
-          actual=$(sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" | cut -d' ' -f1)
+          python - <<'PY'
+          import os, shutil, zipfile
+          from pathlib import Path
+          outer=Path(os.environ['RUNNER_TEMP'])/'NASA_Battery_Data_Set.zip'
+          nested=Path(os.environ['RUNNER_TEMP'])/'BatteryAgingARC-FY08Q4.zip'
+          member=os.environ['NESTED_ARCHIVE_MEMBER']
+          with zipfile.ZipFile(outer) as z:
+              with z.open(member) as src, nested.open('wb') as dst:
+                  shutil.copyfileobj(src,dst)
+          PY
+          actual=$(sha256sum "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" | cut -d' ' -f1)
           expected=$(python - <<'PY'
           import json
           print(json.load(open('development-evidence/CANDIDATE_LOCK.json'))['archive_sha256'])
@@ -186,7 +234,7 @@ jobs:
           rm -rf causal-loom-v024-holdout-output
           python .causal-loom-v024/run_v024_battery_transport.py \
             --stage holdout \
-            --archive "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" \
+            --archive "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" \
             --protocol .causal-loom-v024/V024_FROZEN_PROTOCOL.json \
             --candidate-lock development-evidence/CANDIDATE_LOCK.json \
             --output-dir causal-loom-v024-holdout-output \
@@ -225,7 +273,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v024-r2-frozen-holdout-evidence
+          name: causal-loom-v024-r3-frozen-holdout-evidence
           path: causal-loom-v024-holdout-output
           if-no-files-found: error
           retention-days: 90
@@ -244,13 +292,13 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: causal-loom-v024-r2-development-lock-evidence
+          name: causal-loom-v024-r3-development-lock-evidence
           path: combined-evidence/development
 
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
-          name: causal-loom-v024-r2-frozen-holdout-evidence
+          name: causal-loom-v024-r3-frozen-holdout-evidence
           path: combined-evidence/holdout
 
       - name: Build compact canonical workflow status
@@ -278,6 +326,7 @@ jobs:
             'protocol_git_blob_sha': os.environ['PROTOCOL_BLOB_SHA'],
             'runner_git_blob_sha': os.environ['RUNNER_BLOB_SHA'],
             'wrapper_repair_only': True,
+            'wrapper_revision': 'r3-nested-packaging-route',
             'development_authorized': os.environ.get('DEV_AUTH') == 'true',
             'development_exit_status': os.environ.get('DEV_STATUS'),
             'holdout_job_result': os.environ.get('HOLDOUT_JOB_RESULT'),
@@ -303,7 +352,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: causal-loom-v024-r2-combined-frozen-evidence
+          name: causal-loom-v024-r3-combined-frozen-evidence
           path: combined-evidence
           if-no-files-found: warn
           retention-days: 90
