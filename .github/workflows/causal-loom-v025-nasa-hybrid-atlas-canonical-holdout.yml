@@ -1,0 +1,291 @@
+name: Causal Loom v0.25 canonical frozen NASA holdout
+
+on:
+  push:
+    branches:
+      - causal-loom-v025-hybrid-atlas-20260904
+    paths:
+      - '.github/workflows/causal-loom-v025-nasa-hybrid-atlas-canonical-holdout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: causal-loom-v025-canonical-frozen-holdout
+  cancel-in-progress: false
+
+env:
+  NASA_URL: 'https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip'
+  NESTED_ARCHIVE_MEMBER: '5. Battery Data Set/1. BatteryAgingARC-FY08Q4.zip'
+  DEVELOPMENT_SOURCE_RUN_ID: '33903068968'
+  DEVELOPMENT_ARTIFACT_NAME: 'causal-loom-v025-chunk-safe-development-evidence'
+  DEVELOPMENT_RESULTS_SHA256: 'c514603c9a3865f5f8f54ccd540f3c2280648ab67efe1f0faff845862d945ab5'
+  CANDIDATE_LOCK_SHA256: 'a67b849f8e98af53023fbca1bd85404da9a6df9e2f0002ac9085959654f2ce16'
+  PROTOCOL_PAYLOAD_BLOB_SHA: 'cf200ac306f1dc8e2ac7a0cfb734978b11f9e849'
+  PROTOCOL_PAYLOAD_SHA256: '7aec93d23759de3bfeb4804aa00c49422b0250f1f109bc33f96caa4307f2774e'
+  PROTOCOL_SHA256: 'b7fbc02199cd05b9d0c7c71144d36bd1e146d9d70f0c038ee6964bc1edd783ac'
+  RUNNER_PAYLOAD_SHA256: 'eb3a29d9d984129ce3e409a190c4c8f0caa4c4aef307150cdb011ae64369c4ef'
+  RUNNER_SHA256: '8e1a184d31e0e6e702ea5904c59379eccb5456d822a5be68736906f9d9049d42'
+  NESTED_ARCHIVE_SHA256: 'f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e'
+  PART_00_BLOB_SHA: '7ac2fc6cc0715ab4b23e1bb47d29e0b50f7d63eb'
+  PART_01_BLOB_SHA: 'e17bcfd40dcdcdda462df932383374d47f2b2b15'
+  PART_02_BLOB_SHA: '3962445a370b5b755c6787478d97d487d3f9ac12'
+  PART_03_BLOB_SHA: '19c1342cd5b5c3f549e8f57986af7398e11dfe40'
+  PART_04_BLOB_SHA: '058f5aed4825d44ac68c3efc64fed6e1c9a33527'
+  PART_05_BLOB_SHA: 'ee1c2dd6de198713c4b72566d8f79cdea5a8e4ab'
+  PART_06_BLOB_SHA: 'b0873d0215376879359b3ae2ab683ce33e7693d8'
+  PYTHONHASHSEED: '0'
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+
+jobs:
+  frozen-holdout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    outputs:
+      primary_pass: ${{ steps.verdict.outputs.primary_pass }}
+      strong_pass: ${{ steps.verdict.outputs.strong_pass }}
+      execution_status: ${{ steps.execute.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Reconstruct and verify frozen scientific payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          P=.causal-loom-v025/runner_payload_parts
+          test "$(git hash-object .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64)" = "$PROTOCOL_PAYLOAD_BLOB_SHA"
+          test "$(git hash-object "$P/part_00")" = "$PART_00_BLOB_SHA"
+          test "$(git hash-object "$P/part_01")" = "$PART_01_BLOB_SHA"
+          test "$(git hash-object "$P/part_02")" = "$PART_02_BLOB_SHA"
+          test "$(git hash-object "$P/part_03")" = "$PART_03_BLOB_SHA"
+          test "$(git hash-object "$P/part_04")" = "$PART_04_BLOB_SHA"
+          test "$(git hash-object "$P/part_05")" = "$PART_05_BLOB_SHA"
+          test "$(git hash-object "$P/part_06")" = "$PART_06_BLOB_SHA"
+          mkdir -p "$RUNNER_TEMP/v025" "$RUNNER_TEMP/holdout-preaccess"
+          cat "$P"/part_* > "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py.gz.b64"
+          test "$(sha256sum "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py.gz.b64" | cut -d' ' -f1)" = "$RUNNER_PAYLOAD_SHA256"
+          test "$(sha256sum .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64 | cut -d' ' -f1)" = "$PROTOCOL_PAYLOAD_SHA256"
+          base64 --decode --ignore-garbage .causal-loom-v025/V025_FROZEN_PROTOCOL.json.gz.b64 | gzip --decompress > "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json"
+          base64 --decode --ignore-garbage "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py.gz.b64" | gzip --decompress > "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py"
+          test "$(sha256sum "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json" | cut -d' ' -f1)" = "$PROTOCOL_SHA256"
+          test "$(sha256sum "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" | cut -d' ' -f1)" = "$RUNNER_SHA256"
+          python -m py_compile "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py"
+          sha256sum "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json" "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" > "$RUNNER_TEMP/holdout-preaccess/FROZEN_DECODED_SHA256.txt"
+
+      - name: Retrieve canonical pinned-runtime development lock
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.DEVELOPMENT_ARTIFACT_NAME }}
+          path: development-evidence
+          repository: dzader/github-tree-control
+          run-id: ${{ env.DEVELOPMENT_SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Verify development result, lock, and unopened holdout status
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(sha256sum development-evidence/development_results.json | cut -d' ' -f1)" = "$DEVELOPMENT_RESULTS_SHA256"
+          test "$(sha256sum development-evidence/CANDIDATE_LOCK.json | cut -d' ' -f1)" = "$CANDIDATE_LOCK_SHA256"
+          test "$(cut -d' ' -f1 development-evidence/CANDIDATE_LOCK_SHA256.txt)" = "$CANDIDATE_LOCK_SHA256"
+          export DEV_RESULTS=development-evidence/development_results.json
+          export LOCK=development-evidence/CANDIDATE_LOCK.json
+          export ACCESS=development-evidence/DEVELOPMENT_ACCESS_MANIFEST.json
+          python - <<'PY'
+          import json, os
+          d=json.load(open(os.environ['DEV_RESULTS']))
+          lock=json.load(open(os.environ['LOCK']))
+          access=json.load(open(os.environ['ACCESS']))
+          assert d.get('development_pass') is True
+          assert lock.get('development_pass') is True
+          assert lock.get('development_cells') == ['B0005','B0006']
+          assert lock.get('holdout_cells') == ['B0007','B0018']
+          assert access.get('opened_cells') == ['B0005','B0006']
+          assert access.get('explicitly_unopened_cells') == ['B0007','B0018']
+          assert sorted(x['cell'] for x in access.get('member_evidence',[])) == ['B0005','B0006']
+          print('CANONICAL_DEVELOPMENT_LOCK_VERIFIED; B0007/B0018 UNOPENED')
+          PY
+          cp development-evidence/DEVELOPMENT_ACCESS_MANIFEST.json "$RUNNER_TEMP/holdout-preaccess/"
+          cat > "$RUNNER_TEMP/holdout-preaccess/RUNTIME_LOCK_PROVENANCE.json" <<EOF
+          {
+            "source_run_id": $DEVELOPMENT_SOURCE_RUN_ID,
+            "artifact_name": "$DEVELOPMENT_ARTIFACT_NAME",
+            "development_results_sha256": "$DEVELOPMENT_RESULTS_SHA256",
+            "candidate_lock_sha256": "$CANDIDATE_LOCK_SHA256",
+            "holdout_measurements_accessed_before_this_job": false
+          }
+          EOF
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install frozen numerical environment
+        run: pip install numpy==2.1.3 scipy==1.14.1
+
+      - name: Self-test again before holdout data access
+        run: python "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" --self-test
+
+      - name: Retrieve and verify immutable nested NASA archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error -L --retry 5 --retry-all-errors "$NASA_URL" -o "$RUNNER_TEMP/NASA_Battery_Data_Set.zip"
+          export OUTER="$RUNNER_TEMP/NASA_Battery_Data_Set.zip" NESTED="$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip"
+          python - <<'PY'
+          import os, shutil, zipfile
+          from pathlib import Path
+          outer=Path(os.environ['OUTER']); nested=Path(os.environ['NESTED'])
+          with zipfile.ZipFile(outer) as z:
+              with z.open(os.environ['NESTED_ARCHIVE_MEMBER']) as src, nested.open('wb') as dst:
+                  shutil.copyfileobj(src,dst)
+          PY
+          test "$(sha256sum "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" | cut -d' ' -f1)" = "$NESTED_ARCHIVE_SHA256"
+          sha256sum "$RUNNER_TEMP/NASA_Battery_Data_Set.zip" > "$RUNNER_TEMP/holdout-preaccess/OUTER_ARCHIVE_SHA256.txt"
+          sha256sum "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" > "$RUNNER_TEMP/holdout-preaccess/NESTED_ARCHIVE_SHA256.txt"
+
+      - name: Execute first and permanent B0007/B0018 holdout
+        id: execute
+        shell: bash
+        run: |
+          set +e
+          rm -rf causal-loom-v025-canonical-holdout-output
+          python "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" \
+            --stage holdout \
+            --archive "$RUNNER_TEMP/BatteryAgingARC-FY08Q4.zip" \
+            --protocol "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json" \
+            --candidate-lock development-evidence/CANDIDATE_LOCK.json \
+            --output-dir causal-loom-v025-canonical-holdout-output \
+            > "$RUNNER_TEMP/holdout_stdout.log" 2>&1
+          status=$?
+          set -e
+          mkdir -p causal-loom-v025-canonical-holdout-output
+          cp "$RUNNER_TEMP/holdout_stdout.log" causal-loom-v025-canonical-holdout-output/stdout.log
+          cp -r "$RUNNER_TEMP/holdout-preaccess" causal-loom-v025-canonical-holdout-output/preaccess
+          cp development-evidence/CANDIDATE_LOCK.json causal-loom-v025-canonical-holdout-output/
+          cp development-evidence/CANDIDATE_LOCK_SHA256.txt causal-loom-v025-canonical-holdout-output/
+          cp development-evidence/development_results.json causal-loom-v025-canonical-holdout-output/
+          cp "$RUNNER_TEMP/v025/V025_FROZEN_PROTOCOL.json" causal-loom-v025-canonical-holdout-output/
+          cp "$RUNNER_TEMP/v025/run_v025_hybrid_atlas.py" causal-loom-v025-canonical-holdout-output/
+          echo "$status" > causal-loom-v025-canonical-holdout-output/EXECUTION_EXIT_STATUS.txt
+          find causal-loom-v025-canonical-holdout-output -type f ! -name FILES_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > causal-loom-v025-canonical-holdout-output/FILES_SHA256SUMS.txt
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/holdout_stdout.log"
+
+      - name: Read frozen verdict without modification
+        id: verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          primary=false
+          strong=false
+          if [ -s causal-loom-v025-canonical-holdout-output/holdout_results.json ]; then
+            read -r primary strong < <(python - <<'PY'
+          import json
+          d=json.load(open('causal-loom-v025-canonical-holdout-output/holdout_results.json'))
+          print('true' if d.get('primary_pass') is True else 'false', 'true' if d.get('strong_claim_pass') is True else 'false')
+          PY
+          )
+          fi
+          echo "primary_pass=$primary" >> "$GITHUB_OUTPUT"
+          echo "strong_pass=$strong" >> "$GITHUB_OUTPUT"
+          echo "PRIMARY_PASS=$primary STRONG_CLAIM_PASS=$strong"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: causal-loom-v025-canonical-frozen-holdout-evidence
+          path: causal-loom-v025-canonical-holdout-output
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+  publish:
+    needs: frozen-holdout
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: causal-loom-v025-hybrid-atlas-20260904
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: causal-loom-v025-canonical-frozen-holdout-evidence
+          path: holdout-evidence
+
+      - name: Build compact immutable branch ledger
+        shell: bash
+        env:
+          HOLDOUT_JOB_RESULT: ${{ needs.frozen-holdout.result }}
+          HOLDOUT_STATUS: ${{ needs.frozen-holdout.outputs.execution_status }}
+          HOLDOUT_PRIMARY: ${{ needs.frozen-holdout.outputs.primary_pass }}
+          HOLDOUT_STRONG: ${{ needs.frozen-holdout.outputs.strong_pass }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          DEST="results/v025-canonical-nasa-holdout-run-$RUN_ID"
+          mkdir -p "$DEST"
+          if [ -d holdout-evidence ]; then
+            find holdout-evidence -maxdepth 1 -type f -exec cp {} "$DEST"/ \;
+            if [ -d holdout-evidence/preaccess ]; then cp -r holdout-evidence/preaccess "$DEST"/; fi
+          fi
+          cp .causal-loom-v025/V025_RUNTIME_REPRODUCTION_NOTE.md "$DEST"/
+          export DEST
+          python - <<'PY'
+          import json, os, pathlib
+          d=pathlib.Path(os.environ['DEST'])
+          status={
+            'github_run_id':int(os.environ['RUN_ID']),
+            'development_source_run_id':int(os.environ['DEVELOPMENT_SOURCE_RUN_ID']),
+            'development_results_sha256':os.environ['DEVELOPMENT_RESULTS_SHA256'],
+            'candidate_lock_sha256':os.environ['CANDIDATE_LOCK_SHA256'],
+            'protocol_sha256':os.environ['PROTOCOL_SHA256'],
+            'runner_sha256':os.environ['RUNNER_SHA256'],
+            'nested_archive_sha256':os.environ['NESTED_ARCHIVE_SHA256'],
+            'holdout_job_result':os.environ.get('HOLDOUT_JOB_RESULT'),
+            'holdout_exit_status':os.environ.get('HOLDOUT_STATUS'),
+            'holdout_primary_pass':os.environ.get('HOLDOUT_PRIMARY')=='true',
+            'holdout_strong_claim_pass':os.environ.get('HOLDOUT_STRONG')=='true'
+          }
+          (d/'WORKFLOW_STATUS.json').write_text(json.dumps(status,indent=2,sort_keys=True)+'\n')
+          PY
+          find "$DEST" -type f ! -name RELEASE_SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > "$DEST/RELEASE_SHA256SUMS.txt"
+
+      - name: Commit compact evidence without rerunning holdout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Causal Loom Evidence Bot'
+          git config user.email 'causal-loom-evidence@users.noreply.github.com'
+          git add results/
+          if ! git diff --cached --quiet; then
+            git commit -m "Preserve canonical v0.25 holdout run $GITHUB_RUN_ID"
+            git push origin HEAD:causal-loom-v025-hybrid-atlas-20260904
+          fi
+
+  scientific-verdict:
+    needs: [frozen-holdout, publish]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Expose permanent scientific verdict
+        shell: bash
+        env:
+          HOLDOUT_PRIMARY: ${{ needs.frozen-holdout.outputs.primary_pass }}
+        run: |
+          set -euo pipefail
+          if [ "$HOLDOUT_PRIMARY" != true ]; then
+            echo 'SCIENTIFIC_FAILURE: frozen B0007/B0018 holdout missed at least one primary gate.'
+            exit 2
+          fi
+          echo 'SCIENTIFIC_PRIMARY_PASS'
