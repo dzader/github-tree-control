@@ -1,0 +1,133 @@
+{
+  "gates": {
+    "atlas_vs_generic_cubic_geometric_mean_ratio": {
+      "pass": true,
+      "threshold": 0.85,
+      "value": 0.2376663777368744
+    },
+    "atlas_vs_generic_cubic_win_fraction": {
+      "pass": true,
+      "threshold": 0.65,
+      "value": 1.0
+    },
+    "median_safe_joint_error": {
+      "pass": true,
+      "threshold": 0.1,
+      "value": 0.07246027897000194
+    },
+    "minimum_valid_cycles": {
+      "pass": true,
+      "threshold": 24,
+      "value": 60
+    },
+    "relaxation_geometric_mean_ratio": {
+      "pass": true,
+      "threshold": 0.85,
+      "value": 0.7667085332529977
+    },
+    "relaxation_win_fraction": {
+      "pass": false,
+      "threshold": 0.65,
+      "value": 0.4909090909090909
+    },
+    "safe_vs_local_geometric_mean_ratio": {
+      "pass": true,
+      "threshold": 0.8,
+      "value": 0.6375433224021884
+    },
+    "safe_vs_local_median_ratio": {
+      "pass": true,
+      "threshold": 0.9,
+      "value": 0.7354465733105415
+    },
+    "safe_vs_local_p90_ratio": {
+      "pass": true,
+      "threshold": 1.1,
+      "value": 1.0385081311453421
+    },
+    "safe_vs_local_win_fraction": {
+      "pass": true,
+      "threshold": 0.7,
+      "value": 0.7333333333333333
+    },
+    "tail_geometric_mean_ratio": {
+      "pass": true,
+      "threshold": 0.85,
+      "value": 0.6507706610786521
+    },
+    "tail_win_fraction": {
+      "pass": true,
+      "threshold": 0.65,
+      "value": 0.7166666666666667
+    },
+    "zero_catastrophic_failures": {
+      "pass": true,
+      "threshold": 0,
+      "value": 0
+    }
+  },
+  "primary_pass": false,
+  "protocol_id": "causal-loom-v0.25-projective-hybrid-mechanism-atlas-nasa-battery",
+  "stage": "frozen-holdout",
+  "strong_claim_gates": {
+    "eta_vs_discharge_order_pearson": {
+      "pass": true,
+      "threshold": 0.55,
+      "value": 0.6484538042535383
+    },
+    "eta_vs_qoff_pearson": {
+      "pass": true,
+      "threshold": -0.55,
+      "value": -0.6264308068927831
+    }
+  },
+  "strong_claim_pass": true,
+  "summary": {
+    "atlas_vs_generic_hybrid_cubic": {
+      "geometric_mean_ratio": 0.2376663777368744,
+      "maximum_ratio": 0.45966320638827424,
+      "median_ratio": 0.25104212356180056,
+      "n": 60,
+      "p90_ratio": 0.37984761307445863,
+      "win_fraction": 1.0
+    },
+    "catastrophic_failures": 0,
+    "eta_vs_discharge_order_pearson": 0.6484538042535383,
+    "eta_vs_qoff_pearson": -0.6264308068927831,
+    "eta_vs_qoff_pearson_by_cell": {
+      "B0007": -0.7953617079373494,
+      "B0018": -0.5592392703653701
+    },
+    "median_safe_joint_error": 0.07246027897000194,
+    "relaxation_safe_vs_local": {
+      "geometric_mean_ratio": 0.7667085332529977,
+      "maximum_ratio": 3.0910954177699272,
+      "median_ratio": 1.0,
+      "n": 55,
+      "p90_ratio": 1.616062118084309,
+      "win_fraction": 0.4909090909090909
+    },
+    "safe_vs_local": {
+      "geometric_mean_ratio": 0.6375433224021884,
+      "maximum_ratio": 1.5593668705391492,
+      "median_ratio": 0.7354465733105415,
+      "n": 60,
+      "p90_ratio": 1.0385081311453421,
+      "win_fraction": 0.7333333333333333
+    },
+    "selected_lambda": {
+      "full_atlas_fraction": 0.5333333333333333,
+      "median": 1.0,
+      "positive_fraction": 0.85
+    },
+    "tail_safe_vs_local": {
+      "geometric_mean_ratio": 0.6507706610786521,
+      "maximum_ratio": 1.7412772270456405,
+      "median_ratio": 0.7636368919565495,
+      "n": 60,
+      "p90_ratio": 1.1118157876954113,
+      "win_fraction": 0.7166666666666667
+    },
+    "valid_cycles": 60
+  }
+}

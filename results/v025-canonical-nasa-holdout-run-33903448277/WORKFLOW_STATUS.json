@@ -1,0 +1,13 @@
+{
+  "candidate_lock_sha256": "a67b849f8e98af53023fbca1bd85404da9a6df9e2f0002ac9085959654f2ce16",
+  "development_results_sha256": "c514603c9a3865f5f8f54ccd540f3c2280648ab67efe1f0faff845862d945ab5",
+  "development_source_run_id": 33903068968,
+  "github_run_id": 33903448277,
+  "holdout_exit_status": "2",
+  "holdout_job_result": "success",
+  "holdout_primary_pass": false,
+  "holdout_strong_claim_pass": true,
+  "nested_archive_sha256": "f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e",
+  "protocol_sha256": "b7fbc02199cd05b9d0c7c71144d36bd1e146d9d70f0c038ee6964bc1edd783ac",
+  "runner_sha256": "8e1a184d31e0e6e702ea5904c59379eccb5456d822a5be68736906f9d9049d42"
+}

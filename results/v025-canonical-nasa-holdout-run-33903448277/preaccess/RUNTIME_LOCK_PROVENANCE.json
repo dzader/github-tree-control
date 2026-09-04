@@ -1,0 +1,7 @@
+{
+  "source_run_id": 33903068968,
+  "artifact_name": "causal-loom-v025-chunk-safe-development-evidence",
+  "development_results_sha256": "c514603c9a3865f5f8f54ccd540f3c2280648ab67efe1f0faff845862d945ab5",
+  "candidate_lock_sha256": "a67b849f8e98af53023fbca1bd85404da9a6df9e2f0002ac9085959654f2ce16",
+  "holdout_measurements_accessed_before_this_job": false
+}

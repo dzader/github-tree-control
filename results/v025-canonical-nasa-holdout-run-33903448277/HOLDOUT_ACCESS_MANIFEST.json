@@ -1,0 +1,23 @@
+{
+  "archive_sha256": "f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e",
+  "candidate_lock_sha256": "a67b849f8e98af53023fbca1bd85404da9a6df9e2f0002ac9085959654f2ce16",
+  "cycle_count": 60,
+  "member_evidence": [
+    {
+      "archive_member": "B0007.mat",
+      "bytes": 16049460,
+      "cell": "B0007",
+      "sha256": "d022afa086efaf54ab5b63f05220f5be178c8027e2fa8d68589db0e85a441a3b"
+    },
+    {
+      "archive_member": "B0018.mat",
+      "bytes": 8502218,
+      "cell": "B0018",
+      "sha256": "d1e6c923a43ea1c9666b3a90bbb521757a067fd60b4d17dbfaa49c50b179da69"
+    }
+  ],
+  "opened_cells": [
+    "B0007",
+    "B0018"
+  ]
+}

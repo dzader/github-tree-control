@@ -1,0 +1,29 @@
+{
+  "archive_sha256": "f3a4fcd7c3434e06906f4222778445ce6ad42f49c5c78a785bdd676b7c223a2e",
+  "cycles_per_cell": {
+    "B0005": 30,
+    "B0006": 30
+  },
+  "explicitly_unopened_cells": [
+    "B0007",
+    "B0018"
+  ],
+  "member_evidence": [
+    {
+      "archive_member": "B0005.mat",
+      "bytes": 15956874,
+      "cell": "B0005",
+      "sha256": "0eae4585baf3f200c09fe24c5ab884f1889679fc75206ca1aa19da704104f0b0"
+    },
+    {
+      "archive_member": "B0006.mat",
+      "bytes": 16028159,
+      "cell": "B0006",
+      "sha256": "fa818ab4db5db8ab21e910b6dd6c3e20d3761bb9672089e1a4de8f96074616c5"
+    }
+  ],
+  "opened_cells": [
+    "B0005",
+    "B0006"
+  ]
+}
